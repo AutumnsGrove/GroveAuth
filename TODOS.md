@@ -1,40 +1,44 @@
 # TODOs for GroveAuth
 
-## Pre-Deployment Setup (Requires Local Machine)
-- [ ] Generate RSA keypair for JWT signing (see LATER_COMMANDS.md)
-- [ ] Create Google OAuth credentials at console.cloud.google.com
-- [ ] Create GitHub OAuth app at github.com/settings/developers
-- [ ] Set up Resend account and verify grove.place domain
-- [ ] Create D1 database via `wrangler d1 create groveauth`
-- [ ] Update `wrangler.toml` with actual database_id
-- [ ] Set all secrets via `wrangler secret put`
-- [ ] Configure DNS for auth.grove.place
+## Completed (2025-12-08)
+- [x] Generate RSA keypair for JWT signing
+- [x] Create Google OAuth credentials
+- [x] Create GitHub OAuth app
+- [x] Set up Resend account
+- [x] Create D1 database via `wrangler d1 create groveauth`
+- [x] Update `wrangler.toml` with actual database_id
+- [x] Set all secrets via `wrangler secret put`
+- [x] Configure DNS for auth.grove.place (frontend)
+- [x] Configure DNS for auth-api.grove.place (backend API)
+- [x] Deploy backend Worker API
+- [x] Deploy frontend to Cloudflare Pages
+- [x] Set up multi-subdomain support (auth/admin/login.grove.place)
+- [x] Add user subscription tiers & post limits
+- [x] Add admin dashboard API endpoints
+- [x] Add sign-in flow to grove.place landing page
+- [x] Fix API URL references (auth.grove.place → auth-api.grove.place)
+- [x] Fix client secret hash encoding (base64 → base64url)
+- [x] Update Google OAuth redirect URI for auth-api.grove.place
+- [x] Cross-subdomain cookies working (domain=.grove.place)
+- [x] Full OAuth flow: grove.place → auth.grove.place → Google → back with tokens
 
-## Deployment Tasks
+## In Progress
+- [ ] Fix admin.grove.place to show dashboard after login (session check not recognizing access_token cookie)
+- [ ] Remove debug error messages from grove.place callback
 
-### Backend (Worker API)
-- [ ] Run database migrations (`pnpm db:migrate`)
-- [ ] Run seed data (`pnpm db:seed`)
-- [ ] Deploy to Cloudflare (`pnpm deploy`)
-- [ ] Test all auth flows end-to-end
-- [ ] Verify rate limiting works
-- [ ] Check security headers
-
-### Frontend (SvelteKit)
-- [ ] Install frontend dependencies (`cd frontend && pnpm install`)
-- [ ] Build frontend (`cd frontend && pnpm build`)
-- [ ] Deploy to Cloudflare Pages (`cd frontend && wrangler pages deploy .svelte-kit/cloudflare`)
-- [ ] Configure custom domain for frontend (if different from API)
+## Next Up
+- [ ] Add GitHub OAuth redirect URI for auth-api.grove.place
+- [ ] Test login.grove.place redirect behavior
+- [ ] Test full OAuth flow end-to-end for all providers
 
 ## Integration Tasks
-- [ ] Add GroveAuth client helpers to @autumnsgrove/groveengine
-- [ ] Update GroveEngine to use GroveAuth for admin authentication
-- [ ] Test full OAuth flow from GroveEngine → GroveAuth → back
+- [x] Add GroveAuth client helpers to @autumnsgrove/groveengine
+- [x] Add sign-in to grove.place landing
+- [ ] Update GroveEngine domains to use GroveAuth for admin authentication
 
 ## Future Enhancements (Post v1)
 - [ ] WebAuthn/Passkey support
 - [ ] Session management UI (view/revoke sessions)
-- [ ] Admin dashboard for user management
 - [ ] Multi-factor authentication
 - [ ] IP-based access restrictions
 

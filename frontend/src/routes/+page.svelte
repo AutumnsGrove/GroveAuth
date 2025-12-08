@@ -1,20 +1,98 @@
 <script lang="ts">
   import Logo from '$lib/components/Logo.svelte';
+
+  let { data } = $props();
+
+  const isAdmin = data?.subdomain === 'admin';
+  const isLogin = data?.subdomain === 'login';
+  const needsLogin = data?.needsLogin;
+  const error = data?.error;
+  const errorDescription = data?.errorDescription;
 </script>
 
 <svelte:head>
-  <title>GroveAuth — Secure Authentication</title>
+  {#if isAdmin}
+    <title>Admin Dashboard - GroveAuth</title>
+  {:else}
+    <title>GroveAuth — Secure Authentication</title>
+  {/if}
   <meta name="description" content="Centralized authentication service for AutumnsGrove properties. Secure login with Google, GitHub, or email magic codes." />
 </svelte:head>
 
-<main class="min-h-screen flex flex-col items-center justify-center px-6 py-16">
-  <!-- Logo/Brand -->
-  <div class="mb-6">
-    <Logo size="lg" />
-  </div>
+{#if isAdmin && needsLogin}
+  <!-- Admin Login Required -->
+  <main class="min-h-screen flex flex-col items-center justify-center px-6 py-16">
+    <div class="mb-6">
+      <Logo size="lg" />
+    </div>
 
-  <!-- Title -->
-  <h1 class="text-4xl md:text-5xl font-serif text-bark mb-3 text-center">GroveAuth</h1>
+    <h1 class="text-3xl md:text-4xl font-serif text-bark mb-3 text-center">Admin Dashboard</h1>
+
+    <p class="text-lg text-bark/70 font-serif italic mb-8 text-center">
+      Authentication required
+    </p>
+
+    <div class="card p-8 max-w-md text-center">
+      <p class="text-bark/70 font-sans mb-6">
+        To access the admin dashboard, please sign in through one of the Grove applications first.
+      </p>
+
+      <a
+        href="https://grove.place"
+        class="inline-flex items-center justify-center gap-2 w-full px-6 py-3 bg-grove-600 hover:bg-grove-700 text-white font-sans rounded-lg transition-colors mb-4"
+      >
+        Sign in via Grove
+        <svg class="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
+          <path fill-rule="evenodd" d="M3 10a.75.75 0 01.75-.75h10.638L10.23 5.29a.75.75 0 111.04-1.08l5.5 5.25a.75.75 0 010 1.08l-5.5 5.25a.75.75 0 11-1.04-1.08l4.158-3.96H3.75A.75.75 0 013 10z" clip-rule="evenodd" />
+        </svg>
+      </a>
+
+      <p class="text-bark/50 font-sans text-sm">
+        After signing in, return to this page to access the dashboard.
+      </p>
+    </div>
+
+    <footer class="mt-16 text-center">
+      <div class="flex items-center justify-center gap-4 text-sm font-sans text-bark/50">
+        <a href="https://auth.grove.place" class="hover:text-grove-600 transition-colors">
+          GroveAuth Home
+        </a>
+      </div>
+    </footer>
+  </main>
+
+{:else if error}
+  <!-- Error State -->
+  <main class="min-h-screen flex flex-col items-center justify-center px-6 py-16">
+    <div class="mb-6">
+      <Logo size="lg" />
+    </div>
+
+    <h1 class="text-3xl font-serif text-bark mb-3 text-center">Error</h1>
+
+    <div class="card p-8 max-w-md text-center">
+      <p class="text-red-400 font-sans mb-2">{error}</p>
+      <p class="text-bark/60 font-sans text-sm">{errorDescription}</p>
+
+      <a
+        href="https://auth.grove.place"
+        class="inline-block mt-6 px-6 py-2 border border-grove-400 text-bark font-sans rounded-lg hover:bg-grove-50 transition-colors"
+      >
+        Back to Home
+      </a>
+    </div>
+  </main>
+
+{:else}
+  <!-- Normal Landing Page -->
+  <main class="min-h-screen flex flex-col items-center justify-center px-6 py-16">
+    <!-- Logo/Brand -->
+    <div class="mb-6">
+      <Logo size="lg" />
+    </div>
+
+    <!-- Title -->
+    <h1 class="text-4xl md:text-5xl font-serif text-bark mb-3 text-center">GroveAuth</h1>
 
   <!-- Tagline -->
   <p class="text-xl md:text-2xl text-bark/70 font-serif italic mb-8 text-center">
@@ -100,4 +178,5 @@
       <span>Part of the AutumnsGrove ecosystem</span>
     </div>
   </footer>
-</main>
+  </main>
+{/if}

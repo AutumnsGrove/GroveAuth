@@ -15,8 +15,11 @@ export const load: PageServerLoad = async ({ parent }) => {
   // Handle admin.grove.place
   if (subdomain === 'admin') {
     if (!session.authenticated) {
-      // Not logged in - redirect to login
-      throw redirect(303, '/login?return_to=/');
+      // Not logged in - return info for the page to show login prompt
+      return {
+        needsLogin: true,
+        subdomain,
+      };
     }
 
     if (session.user?.is_admin) {
@@ -30,7 +33,11 @@ export const load: PageServerLoad = async ({ parent }) => {
     }
 
     // No client domain - show error
-    throw redirect(303, '/error?error=no_client&error_description=No+client+domain+configured');
+    return {
+      error: 'no_client',
+      errorDescription: 'No client domain configured for your account',
+      subdomain,
+    };
   }
 
   // Handle login.grove.place
@@ -39,10 +46,15 @@ export const load: PageServerLoad = async ({ parent }) => {
       // Logged in with a client - redirect to client domain
       throw redirect(303, `https://${session.client.domain}`);
     }
-    // Not logged in or no client - show login page
-    // (The landing page can show a "sign in" prompt)
+    // Not logged in or no client - show landing page with login info
+    return {
+      needsLogin: !session.authenticated,
+      subdomain,
+    };
   }
 
   // auth.grove.place - just show the landing page
-  return {};
+  return {
+    subdomain,
+  };
 };

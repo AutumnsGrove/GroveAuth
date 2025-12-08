@@ -7,8 +7,7 @@ VALUES (
     'c1000000-0000-0000-0000-000000000001',
     'GroveEngine',
     'groveengine',
-    -- Placeholder hash - generate real secret and hash it before deployment
-    'PLACEHOLDER_HASH_REPLACE_BEFORE_DEPLOY',
+    'RGhav92X/tJUgy23MUTXOD9K+Nv9bY8aPevScerrbRk=',
     '["https://grove.place/auth/callback", "https://admin.grove.place/auth/callback"]',
     '["https://grove.place", "https://admin.grove.place"]'
 );
@@ -19,8 +18,7 @@ VALUES (
     'c2000000-0000-0000-0000-000000000002',
     'AutumnsGrove',
     'autumnsgrove',
-    -- Placeholder hash - generate real secret and hash it before deployment
-    'PLACEHOLDER_HASH_REPLACE_BEFORE_DEPLOY',
+    'CfHJBZwJmFy0eXNx9vRUZAvXj673ePuuIGhX3IyJEik=',
     '["https://autumnsgrove.com/auth/callback"]',
     '["https://autumnsgrove.com"]'
 );

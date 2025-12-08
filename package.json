@@ -1,0 +1,33 @@
+{
+  "name": "groveauth",
+  "version": "1.0.0",
+  "description": "Centralized authentication service for AutumnsGrove properties",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest",
+    "test:run": "vitest run",
+    "db:migrate": "wrangler d1 execute groveauth --file=./src/db/schema.sql",
+    "db:migrate:local": "wrangler d1 execute groveauth --local --file=./src/db/schema.sql",
+    "db:seed": "wrangler d1 execute groveauth --file=./src/db/seed.sql",
+    "db:seed:local": "wrangler d1 execute groveauth --local --file=./src/db/seed.sql"
+  },
+  "keywords": ["authentication", "cloudflare-workers", "oauth", "hono"],
+  "author": "AutumnsGrove",
+  "license": "MIT",
+  "packageManager": "pnpm@10.23.0",
+  "dependencies": {
+    "hono": "^4.10.7",
+    "jose": "^6.1.3",
+    "zod": "^4.1.13"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20251205.0",
+    "@types/node": "^24.10.1",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.15",
+    "wrangler": "^4.53.0"
+  }
+}

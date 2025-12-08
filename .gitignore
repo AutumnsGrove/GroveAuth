@@ -1,5 +1,50 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build outputs
+dist/
+.wrangler/
+
+# Secrets and credentials (NEVER commit these)
 secrets.json
-*.log
-__pycache__/
+secrets_template.json
+*.pem
+.env
+.env.local
+.env.*.local
+
+# IDE and editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
 .DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# Test coverage
+coverage/
+.nyc_output/
+
+# Cache
+.cache/
+*.tsbuildinfo
+
+# Claude/AI
 .claude/
+
+# Misc
+*.bak
+*.tmp
+
+# Don't commit update summary files
+baseproject-update-summary.md
+.baseproject-backup-*/

@@ -241,3 +241,67 @@ export interface AuthError {
   error: string;
   error_description?: string;
 }
+
+// =============================================================================
+// SUBSCRIPTION TYPES
+// =============================================================================
+
+export type SubscriptionTier = 'starter' | 'professional' | 'business';
+
+export interface UserSubscription {
+  id: string;
+  user_id: string;
+  tier: SubscriptionTier;
+  post_limit: number | null;
+  post_count: number;
+  grace_period_start: string | null;
+  grace_period_days: number;
+  stripe_customer_id: string | null;
+  stripe_subscription_id: string | null;
+  billing_period_start: string | null;
+  billing_period_end: string | null;
+  custom_domain: string | null;
+  custom_domain_verified: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SubscriptionAuditLog {
+  id: string;
+  user_id: string;
+  event_type: SubscriptionAuditEventType;
+  old_value: string | null;
+  new_value: string | null;
+  created_at: string;
+}
+
+export type SubscriptionAuditEventType =
+  | 'subscription_created'
+  | 'tier_upgraded'
+  | 'tier_downgraded'
+  | 'grace_period_started'
+  | 'grace_period_ended'
+  | 'post_limit_reached'
+  | 'post_archived'
+  | 'custom_domain_added'
+  | 'custom_domain_verified'
+  | 'custom_domain_removed';
+
+export const TIER_POST_LIMITS: Record<SubscriptionTier, number | null> = {
+  starter: 250,
+  professional: 2000,
+  business: null,
+};
+
+export interface SubscriptionStatus {
+  tier: SubscriptionTier;
+  post_count: number;
+  post_limit: number | null;
+  posts_remaining: number | null;
+  percentage_used: number | null;
+  is_at_limit: boolean;
+  is_in_grace_period: boolean;
+  grace_period_days_remaining: number | null;
+  can_create_post: boolean;
+  upgrade_required: boolean;
+}

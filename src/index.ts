@@ -18,6 +18,7 @@ import magic from './routes/magic.js';
 import tokenRoutes from './routes/token.js';
 import verifyRoutes from './routes/verify.js';
 import health from './routes/health.js';
+import subscription from './routes/subscription.js';
 
 // Create the main Hono app
 const app = new Hono<{ Bindings: Env }>();
@@ -72,6 +73,7 @@ app.post('/logout', async (c) => {
 });
 
 app.route('/health', health);
+app.route('/subscription', subscription);
 
 // Root - show API info
 app.get('/', (c) => {
@@ -99,6 +101,13 @@ app.get('/', (c) => {
       userinfo: 'GET /userinfo',
       logout: 'POST /logout',
       health: 'GET /health',
+      subscription: {
+        get: 'GET /subscription',
+        getByUserId: 'GET /subscription/:userId',
+        canPost: 'GET /subscription/:userId/can-post',
+        updatePostCount: 'POST /subscription/:userId/post-count',
+        updateTier: 'PUT /subscription/:userId/tier',
+      },
     },
   });
 });

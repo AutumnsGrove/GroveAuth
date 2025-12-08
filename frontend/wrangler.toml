@@ -1,0 +1,16 @@
+# GroveAuth Frontend
+# Deploy to Cloudflare Pages
+
+name = "groveauth-frontend"
+compatibility_date = "2024-12-01"
+compatibility_flags = ["nodejs_compat"]
+
+pages_build_output_dir = ".svelte-kit/cloudflare"
+
+# Environment variables (non-secret)
+[vars]
+AUTH_API_URL = "https://groveauth.m7jv4v7npb.workers.dev"
+
+# Custom domain - configure in Cloudflare Pages dashboard
+# Frontend will be deployed to auth.grove.place
+# Worker API stays at groveauth.m7jv4v7npb.workers.dev

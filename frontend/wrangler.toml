@@ -9,8 +9,8 @@ pages_build_output_dir = ".svelte-kit/cloudflare"
 
 # Environment variables (non-secret)
 [vars]
-AUTH_API_URL = "https://groveauth.m7jv4v7npb.workers.dev"
+AUTH_API_URL = "https://auth-api.grove.place"
 
-# Custom domain - configure in Cloudflare Pages dashboard
-# Frontend will be deployed to auth.grove.place
-# Worker API stays at groveauth.m7jv4v7npb.workers.dev
+# Custom domains:
+# - Frontend: auth.grove.place, admin.grove.place, login.grove.place (Pages)
+# - Backend API: auth-api.grove.place (Worker)

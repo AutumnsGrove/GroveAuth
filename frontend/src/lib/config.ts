@@ -3,7 +3,7 @@
  * API URL points to the Cloudflare Worker backend
  */
 
-export const AUTH_API_URL = 'https://groveauth.m7jv4v7npb.workers.dev';
+export const AUTH_API_URL = 'https://auth-api.grove.place';
 
 export const config = {
   apiUrl: AUTH_API_URL,

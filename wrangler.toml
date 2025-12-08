@@ -1,0 +1,31 @@
+# GroveAuth - Centralized Authentication Service
+# Domain: auth.grove.place
+
+name = "groveauth"
+main = "src/index.ts"
+compatibility_date = "2024-12-01"
+
+# Production environment variables
+[vars]
+AUTH_BASE_URL = "https://auth.grove.place"
+ENVIRONMENT = "production"
+
+# D1 Database binding
+[[d1_databases]]
+binding = "DB"
+database_name = "groveauth"
+database_id = "YOUR_DATABASE_ID_HERE"
+
+# Custom domain routing
+# routes = [
+#   { pattern = "auth.grove.place", custom_domain = true }
+# ]
+
+# Secrets (set via `wrangler secret put <NAME>`):
+# - JWT_PRIVATE_KEY: RSA private key for signing JWTs (PEM format)
+# - JWT_PUBLIC_KEY: RSA public key for verifying JWTs (PEM format)
+# - GOOGLE_CLIENT_ID: Google OAuth client ID
+# - GOOGLE_CLIENT_SECRET: Google OAuth client secret
+# - GITHUB_CLIENT_ID: GitHub OAuth client ID
+# - GITHUB_CLIENT_SECRET: GitHub OAuth client secret
+# - RESEND_API_KEY: Resend API key for sending emails

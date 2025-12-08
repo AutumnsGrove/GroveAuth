@@ -1,21 +1,38 @@
-# Project Instructions - Agent Workflows
+# Project Instructions - GroveAuth
 
 > **Note**: This is the main orchestrator file. For detailed guides, see `AgentUsage/README.md`
 
 ---
 
 ## Project Purpose
-[Fill in: What this project does - 1-2 sentences]
+
+GroveAuth is a centralized authentication service for all AutumnsGrove properties. It handles OAuth (Google, GitHub) and Magic Code (email) authentication, issuing JWT tokens that client sites can verify. Runs on Cloudflare Workers with D1 database.
 
 ## Tech Stack
-[Fill in: Technologies, frameworks, and languages used]
-- Language:
-- Framework:
-- Key Libraries:
-- Package Manager:
+
+- **Language**: TypeScript
+- **Runtime**: Cloudflare Workers
+- **Framework**: Hono.js
+- **Database**: Cloudflare D1 (SQLite)
+- **Key Libraries**: jose (JWT), zod (validation)
+- **Package Manager**: pnpm
 
 ## Architecture Notes
-[Fill in: Key architectural decisions, patterns, or structure]
+
+- **OAuth 2.0 Authorization Code Flow with PKCE** for Google/GitHub
+- **Magic Code** (6-digit email codes via Resend) as fallback
+- **Admin-only access** - allowlist-based, no public registration
+- **JWT tokens** signed with RS256 (1hr access, 30d refresh)
+- **Rate limiting** on all sensitive endpoints
+- **Audit logging** for all auth events
+
+### Key Files
+- `src/index.ts` - Main Hono app entry point
+- `src/routes/` - Route handlers for each endpoint
+- `src/services/` - Business logic (JWT, OAuth, email)
+- `src/middleware/` - CORS, rate limiting, security headers
+- `src/db/schema.sql` - Database schema
+- `templates/` - HTML templates for login page
 
 ---
 
@@ -47,18 +64,16 @@
 
 <optional body>
 
-🤖 Generated with [Claude Code](https://claude.ai/code)
-
-Co-Authored-By: [Model Name] <agent@localhost>
+Co-Authored-By: Claude <agent@localhost>
 ```
 
 **Common Types:** `feat`, `fix`, `docs`, `refactor`, `test`, `chore`, `perf`
 
 **Examples:**
 ```bash
-feat: Add user authentication
-fix: Correct timezone bug
-docs: Update README
+feat: Add Google OAuth flow
+fix: Correct rate limiting logic
+docs: Update API documentation
 ```
 
 **For complete details:** See `AgentUsage/git_guide.md`
@@ -72,90 +87,90 @@ docs: Update README
 ### Secrets & API Keys
 - **When managing API keys or secrets** → Read `AgentUsage/secrets_management.md`
 - **Before implementing secrets loading** → Read `AgentUsage/secrets_management.md`
-- **When integrating external APIs** → Read `AgentUsage/api_usage.md`
 
 ### Cloudflare Development
 - **When deploying to Cloudflare** → Read `AgentUsage/cloudflare_guide.md`
 - **Before using Cloudflare Workers, KV, R2, or D1** → Read `AgentUsage/cloudflare_guide.md`
-- **When setting up Cloudflare MCP server** → Read `AgentUsage/cloudflare_guide.md`
-
-### Package Management
-- **When using UV package manager** → Read `AgentUsage/uv_usage.md`
-- **Before creating pyproject.toml** → Read `AgentUsage/uv_usage.md`
-- **When managing Python dependencies** → Read `AgentUsage/uv_usage.md`
 
 ### Version Control
 - **Before making a git commit** → Read `AgentUsage/git_guide.md`
-- **When initializing a new repo** → Read `AgentUsage/git_guide.md`
-- **For git workflow and branching** → Read `AgentUsage/git_guide.md`
 - **For conventional commits reference** → Read `AgentUsage/git_guide.md`
 
-### Database Management
-- **When working with databases** → Read `AgentUsage/db_usage.md`
-- **Before implementing data persistence** → Read `AgentUsage/db_usage.md`
-- **For database.py template** → Read `AgentUsage/db_usage.md`
-
-### Search & Research
-- **When searching across 20+ files** → Read `AgentUsage/house_agents.md`
-- **When finding patterns in codebase** → Read `AgentUsage/house_agents.md`
-- **When locating TODOs/FIXMEs** → Read `AgentUsage/house_agents.md`
-
 ### Testing
-- **Before writing Python tests** → Read `AgentUsage/testing_python.md`
-- **Before writing JavaScript/TypeScript tests** → Read `AgentUsage/testing_javascript.md`
-- **Before writing Go tests** → Read `AgentUsage/testing_go.md`
-- **Before writing Rust tests** → Read `AgentUsage/testing_rust.md`
+- **Before writing TypeScript tests** → Read `AgentUsage/testing_javascript.md`
 
+---
 
-### Code Quality
-- **When refactoring code** → Read `AgentUsage/code_style_guide.md`
-- **Before major code changes** → Read `AgentUsage/code_style_guide.md`
-- **For style guidelines** → Read `AgentUsage/code_style_guide.md`
+## Project-Specific Notes
 
-### Project Setup
-- **When starting a new project** → Read `AgentUsage/project_setup.md`
-- **For directory structure** → Read `AgentUsage/project_setup.md`
-- **Setting up CI/CD** → Read `AgentUsage/project_setup.md`
+### Secrets Required (set via `wrangler secret put`)
+- `JWT_PRIVATE_KEY` - RSA private key (PEM format)
+- `JWT_PUBLIC_KEY` - RSA public key (PEM format)
+- `GOOGLE_CLIENT_ID` - Google OAuth client ID
+- `GOOGLE_CLIENT_SECRET` - Google OAuth client secret
+- `GITHUB_CLIENT_ID` - GitHub OAuth app client ID
+- `GITHUB_CLIENT_SECRET` - GitHub OAuth app secret
+- `RESEND_API_KEY` - Resend API key for email
+
+### Database Setup
+```bash
+# Create D1 database
+wrangler d1 create groveauth
+
+# Run migrations
+pnpm db:migrate
+
+# Seed initial data
+pnpm db:seed
+```
+
+### RSA Key Generation
+Generate keys locally (do NOT commit to git):
+```bash
+# Generate private key
+openssl genrsa -out private.pem 2048
+
+# Extract public key
+openssl rsa -in private.pem -pubout -out public.pem
+
+# Set as secrets
+wrangler secret put JWT_PRIVATE_KEY < private.pem
+wrangler secret put JWT_PUBLIC_KEY < public.pem
+
+# Delete local files
+rm private.pem public.pem
+```
+
+### Initial Clients
+- **groveengine** - GroveEngine internal site (*.grove.place)
+- **autumnsgrove** - AutumnsGrove main site
+
+### Initial Allowed Admin
+- `autumnbrown23@pm.me`
 
 ---
 
 ## Quick Reference
 
 ### Security Basics
-- Store API keys in `secrets.json` (NEVER commit)
-- Add `secrets.json` to `.gitignore` immediately
-- Provide `secrets_template.json` for setup
-- Use environment variables as fallbacks
+- Store API keys as Cloudflare secrets (NEVER in code)
+- Use PKCE for all OAuth flows
+- Rate limit all authentication endpoints
+- Log all auth events for audit trail
 
-
-### House Agents Quick Trigger
-**When searching 20+ files**, use house-research for:
-- Finding patterns across codebase
-- Searching TODO/FIXME comments
-- Locating API endpoints or functions
-- Documentation searches
-
----
-
-## Code Style Guidelines
-
-### Function & Variable Naming
-- Use meaningful, descriptive names
-- Keep functions small and focused on single responsibilities
-- Add docstrings to functions and classes
-
-### Error Handling
-- Use try/except blocks gracefully
-- Provide helpful error messages
-- Never let errors fail silently
-
-### File Organization
-- Group related functionality into modules
-- Use consistent import ordering:
-  1. Standard library
-  2. Third-party packages
-  3. Local imports
-- Keep configuration separate from logic
+### API Endpoints
+| Endpoint | Purpose |
+|----------|---------|
+| `GET /login` | Login page with provider selection |
+| `GET /oauth/google` | Initiate Google OAuth |
+| `GET /oauth/github` | Initiate GitHub OAuth |
+| `POST /magic/send` | Send magic code email |
+| `POST /magic/verify` | Verify magic code |
+| `POST /token` | Exchange code for tokens |
+| `POST /token/refresh` | Refresh access token |
+| `GET /verify` | Verify access token |
+| `GET /userinfo` | Get current user info |
+| `GET /health` | Health check |
 
 ---
 
@@ -167,11 +182,5 @@ docs: Update README
 
 ---
 
-## Complete Guide Index
-For all detailed guides, workflows, and examples, see:
-**`AgentUsage/README.md`** - Master index of all documentation
-
----
-
-*Last updated: 2025-11-28*
-*Model: Claude Sonnet 4.5*
+*Last updated: 2025-12-08*
+*Model: Claude Opus 4*

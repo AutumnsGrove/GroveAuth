@@ -1,0 +1,91 @@
+/**
+ * Input validation utilities using Zod
+ */
+
+import { z } from 'zod';
+
+// Login parameters validation
+export const loginParamsSchema = z.object({
+  client_id: z.string().min(1, 'client_id is required'),
+  redirect_uri: z.string().url('redirect_uri must be a valid URL'),
+  state: z.string().min(1, 'state is required'),
+  code_challenge: z.string().optional(),
+  code_challenge_method: z.literal('S256').optional(),
+});
+
+// Token request validation
+export const tokenRequestSchema = z
+  .object({
+    grant_type: z.enum(['authorization_code', 'refresh_token']),
+    code: z.string().optional(),
+    redirect_uri: z.string().url().optional(),
+    client_id: z.string().min(1, 'client_id is required'),
+    client_secret: z.string().min(1, 'client_secret is required'),
+    code_verifier: z.string().optional(),
+    refresh_token: z.string().optional(),
+  })
+  .refine(
+    (data) => {
+      if (data.grant_type === 'authorization_code') {
+        return !!data.code && !!data.redirect_uri;
+      }
+      if (data.grant_type === 'refresh_token') {
+        return !!data.refresh_token;
+      }
+      return false;
+    },
+    {
+      message: 'Missing required parameters for grant type',
+    }
+  );
+
+// Magic code send request validation
+export const magicCodeSendSchema = z.object({
+  email: z.string().email('Invalid email format'),
+  client_id: z.string().min(1, 'client_id is required'),
+  redirect_uri: z.string().url('redirect_uri must be a valid URL'),
+});
+
+// Magic code verify request validation
+export const magicCodeVerifySchema = z.object({
+  email: z.string().email('Invalid email format'),
+  code: z.string().length(6, 'Code must be 6 digits').regex(/^\d+$/, 'Code must be numeric'),
+  client_id: z.string().min(1, 'client_id is required'),
+  redirect_uri: z.string().url('redirect_uri must be a valid URL'),
+  state: z.string().min(1, 'state is required'),
+});
+
+// Token revoke request validation
+export const tokenRevokeSchema = z.object({
+  token: z.string().min(1, 'token is required'),
+  token_type_hint: z.enum(['refresh_token', 'access_token']).optional(),
+  client_id: z.string().min(1, 'client_id is required'),
+  client_secret: z.string().min(1, 'client_secret is required'),
+});
+
+// Email validation helper
+export function isValidEmail(email: string): boolean {
+  const result = z.string().email().safeParse(email);
+  return result.success;
+}
+
+// URL validation helper
+export function isValidUrl(url: string): boolean {
+  const result = z.string().url().safeParse(url);
+  return result.success;
+}
+
+// Sanitize string input (remove potentially dangerous characters)
+export function sanitizeString(input: string): string {
+  return input.replace(/[<>]/g, '').trim();
+}
+
+// Parse URL-encoded form data
+export function parseFormData(body: string): Record<string, string> {
+  const params = new URLSearchParams(body);
+  const result: Record<string, string> = {};
+  for (const [key, value] of params.entries()) {
+    result[key] = value;
+  }
+  return result;
+}

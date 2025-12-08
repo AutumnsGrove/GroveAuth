@@ -1,9 +1,9 @@
 /**
  * GroveAuth Frontend Configuration
- * API URL defaults to the production auth service
+ * API URL points to the Cloudflare Worker backend
  */
 
-export const AUTH_API_URL = 'https://auth.grove.place';
+export const AUTH_API_URL = 'https://groveauth.m7jv4v7npb.workers.dev';
 
 export const config = {
   apiUrl: AUTH_API_URL,

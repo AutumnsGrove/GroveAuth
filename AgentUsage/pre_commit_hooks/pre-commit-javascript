@@ -10,6 +10,17 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
+# ============================================================================
+# RUN SECRETS SCANNER FIRST (Critical Security Check)
+# ============================================================================
+HOOK_DIR="$(dirname "$0")"
+if [ -x "$HOOK_DIR/pre-commit-secrets" ]; then
+    "$HOOK_DIR/pre-commit-secrets"
+    if [ $? -ne 0 ]; then
+        exit 1
+    fi
+fi
+
 # Get staged JavaScript/TypeScript files
 js_ts_files=$(git diff --cached --name-only --diff-filter=ACM | grep '\.\(js\|jsx\|ts\|tsx\|mjs\|cjs\)$' || true)
 

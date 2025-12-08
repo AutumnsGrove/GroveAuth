@@ -18,6 +18,11 @@ export const config = {
     verify: '/verify',
     userinfo: '/userinfo',
     logout: '/logout',
-    health: '/health'
+    health: '/health',
+    sessionCheck: '/session/check',
+    adminStats: '/admin/stats',
+    adminUsers: '/admin/users',
+    adminAuditLog: '/admin/audit-log',
+    adminClients: '/admin/clients',
   }
 };

@@ -12,13 +12,17 @@ import type {
   RateLimit,
   FailedAttempt,
   AuditEventType,
+  AuditLog,
   OAuthState,
   UserSubscription,
   SubscriptionTier,
   SubscriptionStatus,
   SubscriptionAuditEventType,
+  UserSession,
+  UserClientPreference,
+  AdminStats,
 } from '../types.js';
-import { TIER_POST_LIMITS } from '../types.js';
+import { TIER_POST_LIMITS, ADMIN_EMAILS } from '../types.js';
 import { generateUUID } from '../utils/crypto.js';
 
 // ==================== Clients ====================
@@ -658,4 +662,159 @@ export async function createSubscriptionAuditLog(db: D1Database, data: {
   await db.prepare(
     `INSERT INTO subscription_audit_log (id, user_id, event_type, old_value, new_value) VALUES (?, ?, ?, ?, ?)`
   ).bind(id, data.user_id, data.event_type, data.old_value || null, data.new_value || null).run();
+}
+
+// ==================== User Sessions ====================
+
+export async function createUserSession(
+  db: D1Database,
+  data: {
+    user_id: string;
+    client_id: string;
+    session_token_hash: string;
+    expires_at: string;
+  }
+): Promise<string> {
+  const id = generateUUID();
+  const now = new Date().toISOString();
+  await db.prepare(
+    `INSERT INTO user_sessions (id, user_id, client_id, session_token_hash, last_used_at, expires_at, is_active)
+     VALUES (?, ?, ?, ?, ?, ?, 1)`
+  ).bind(id, data.user_id, data.client_id, data.session_token_hash, now, data.expires_at).run();
+  return id;
+}
+
+export async function getSessionByTokenHash(
+  db: D1Database,
+  tokenHash: string
+): Promise<UserSession | null> {
+  const now = new Date().toISOString();
+  return db.prepare(
+    `SELECT * FROM user_sessions WHERE session_token_hash = ? AND is_active = 1 AND expires_at > ?`
+  ).bind(tokenHash, now).first<UserSession>();
+}
+
+export async function updateSessionLastUsed(db: D1Database, sessionId: string): Promise<void> {
+  const now = new Date().toISOString();
+  await db.prepare(`UPDATE user_sessions SET last_used_at = ? WHERE id = ?`).bind(now, sessionId).run();
+}
+
+export async function revokeSession(db: D1Database, sessionId: string): Promise<void> {
+  await db.prepare(`UPDATE user_sessions SET is_active = 0 WHERE id = ?`).bind(sessionId).run();
+}
+
+export async function revokeAllUserSessions(db: D1Database, userId: string): Promise<void> {
+  await db.prepare(`UPDATE user_sessions SET is_active = 0 WHERE user_id = ?`).bind(userId).run();
+}
+
+// ==================== User Client Preferences ====================
+
+export async function getUserClientPreference(
+  db: D1Database,
+  userId: string
+): Promise<UserClientPreference | null> {
+  return db.prepare(`SELECT * FROM user_client_preferences WHERE user_id = ?`).bind(userId).first<UserClientPreference>();
+}
+
+export async function updateLastUsedClient(
+  db: D1Database,
+  userId: string,
+  clientId: string
+): Promise<void> {
+  const now = new Date().toISOString();
+  await db.prepare(
+    `INSERT INTO user_client_preferences (user_id, last_used_client_id, updated_at)
+     VALUES (?, ?, ?)
+     ON CONFLICT(user_id) DO UPDATE SET last_used_client_id = ?, updated_at = ?`
+  ).bind(userId, clientId, now, clientId, now).run();
+}
+
+// ==================== Client Domain Queries ====================
+
+export async function getClientByDomain(db: D1Database, domain: string): Promise<Client | null> {
+  return db.prepare(`SELECT * FROM clients WHERE domain = ?`).bind(domain).first<Client>();
+}
+
+export async function getAllClients(db: D1Database): Promise<Client[]> {
+  const result = await db.prepare(`SELECT * FROM clients ORDER BY name`).all<Client>();
+  return result.results || [];
+}
+
+// ==================== Admin Queries ====================
+
+export function isEmailAdmin(email: string): boolean {
+  return ADMIN_EMAILS.includes(email.toLowerCase());
+}
+
+export async function isUserAdmin(db: D1Database, userId: string): Promise<boolean> {
+  const user = await getUserById(db, userId);
+  if (!user) return false;
+  return user.is_admin === 1 || isEmailAdmin(user.email);
+}
+
+export async function getAdminStats(db: D1Database): Promise<AdminStats> {
+  // Total users
+  const totalUsersResult = await db.prepare(`SELECT COUNT(*) as count FROM users`).first<{ count: number }>();
+
+  // Users by provider
+  const providerResults = await db.prepare(
+    `SELECT provider, COUNT(*) as count FROM users GROUP BY provider`
+  ).all<{ provider: string; count: number }>();
+
+  // Users by subscription tier
+  const tierResults = await db.prepare(
+    `SELECT tier, COUNT(*) as count FROM user_subscriptions GROUP BY tier`
+  ).all<{ tier: string; count: number }>();
+
+  // Recent logins (last 50)
+  const recentLogins = await db.prepare(
+    `SELECT * FROM audit_log WHERE event_type = 'login' ORDER BY created_at DESC LIMIT 50`
+  ).all<AuditLog>();
+
+  // Total clients
+  const totalClientsResult = await db.prepare(`SELECT COUNT(*) as count FROM clients`).first<{ count: number }>();
+
+  return {
+    total_users: totalUsersResult?.count ?? 0,
+    users_by_provider: Object.fromEntries(
+      providerResults.results?.map(r => [r.provider, r.count]) ?? []
+    ),
+    users_by_tier: Object.fromEntries(
+      tierResults.results?.map(r => [r.tier, r.count]) ?? []
+    ),
+    recent_logins: recentLogins.results ?? [],
+    total_clients: totalClientsResult?.count ?? 0,
+  };
+}
+
+export async function getAllUsers(
+  db: D1Database,
+  limit: number = 50,
+  offset: number = 0
+): Promise<User[]> {
+  const result = await db.prepare(
+    `SELECT * FROM users ORDER BY created_at DESC LIMIT ? OFFSET ?`
+  ).bind(limit, offset).all<User>();
+  return result.results || [];
+}
+
+export async function getAuditLogs(
+  db: D1Database,
+  options: { limit?: number; offset?: number; eventType?: string }
+): Promise<AuditLog[]> {
+  const { limit = 100, offset = 0, eventType } = options;
+
+  let query = `SELECT * FROM audit_log`;
+  const params: (string | number)[] = [];
+
+  if (eventType) {
+    query += ` WHERE event_type = ?`;
+    params.push(eventType);
+  }
+
+  query += ` ORDER BY created_at DESC LIMIT ? OFFSET ?`;
+  params.push(limit, offset);
+
+  const result = await db.prepare(query).bind(...params).all<AuditLog>();
+  return result.results || [];
 }

@@ -19,6 +19,8 @@ import tokenRoutes from './routes/token.js';
 import verifyRoutes from './routes/verify.js';
 import health from './routes/health.js';
 import subscription from './routes/subscription.js';
+import admin from './routes/admin.js';
+import session from './routes/session.js';
 
 // Create the main Hono app
 const app = new Hono<{ Bindings: Env }>();
@@ -74,6 +76,8 @@ app.post('/logout', async (c) => {
 
 app.route('/health', health);
 app.route('/subscription', subscription);
+app.route('/admin', admin);
+app.route('/session', session);
 
 // Root - show API info
 app.get('/', (c) => {
@@ -107,6 +111,15 @@ app.get('/', (c) => {
         canPost: 'GET /subscription/:userId/can-post',
         updatePostCount: 'POST /subscription/:userId/post-count',
         updateTier: 'PUT /subscription/:userId/tier',
+      },
+      admin: {
+        stats: 'GET /admin/stats',
+        users: 'GET /admin/users',
+        auditLog: 'GET /admin/audit-log',
+        clients: 'GET /admin/clients',
+      },
+      session: {
+        check: 'GET /session/check',
       },
     },
   });

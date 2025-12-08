@@ -29,6 +29,7 @@ export interface Client {
   client_secret_hash: string;
   redirect_uris: string; // JSON array
   allowed_origins: string; // JSON array
+  domain: string | null; // Primary domain for redirects
   created_at: string;
   updated_at: string;
 }
@@ -40,6 +41,7 @@ export interface User {
   avatar_url: string | null;
   provider: AuthProvider;
   provider_id: string | null;
+  is_admin: number; // 0 or 1
   created_at: string;
   last_login: string | null;
 }
@@ -305,3 +307,33 @@ export interface SubscriptionStatus {
   can_create_post: boolean;
   upgrade_required: boolean;
 }
+
+// =============================================================================
+// SESSION & ADMIN TYPES
+// =============================================================================
+
+export interface UserSession {
+  id: string;
+  user_id: string;
+  client_id: string;
+  session_token_hash: string;
+  last_used_at: string;
+  expires_at: string;
+  is_active: number;
+}
+
+export interface UserClientPreference {
+  user_id: string;
+  last_used_client_id: string | null;
+  updated_at: string;
+}
+
+export interface AdminStats {
+  total_users: number;
+  users_by_provider: Record<string, number>;
+  users_by_tier: Record<string, number>;
+  recent_logins: AuditLog[];
+  total_clients: number;
+}
+
+export const ADMIN_EMAILS = ['autumn@grove.place', 'autumnbrown23@pm.me'];

@@ -1,0 +1,157 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@font-face {
+  font-family: 'Quicksand';
+  src: url('/fonts/Quicksand-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Quicksand';
+  src: url('/fonts/Quicksand-Medium.ttf') format('truetype');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Quicksand';
+  src: url('/fonts/Quicksand-SemiBold.ttf') format('truetype');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+@layer base {
+  html {
+    font-family: 'Quicksand', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  }
+
+  body {
+    @apply bg-cream text-bark antialiased;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-grove-600 hover:bg-grove-700 text-white font-sans font-medium
+      px-6 py-3 rounded-lg transition-colors duration-200
+      focus:outline-none focus:ring-2 focus:ring-grove-500 focus:ring-offset-2
+      disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-secondary {
+    @apply bg-white hover:bg-grove-50 text-bark border border-grove-200 font-sans font-medium
+      px-6 py-3 rounded-lg transition-colors duration-200
+      focus:outline-none focus:ring-2 focus:ring-grove-500 focus:ring-offset-2
+      disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-ghost {
+    @apply bg-transparent hover:bg-bark/5 text-bark font-sans font-medium
+      px-4 py-2 rounded-lg transition-colors duration-200
+      focus:outline-none focus:ring-2 focus:ring-bark/20;
+  }
+
+  .btn-provider {
+    @apply w-full flex items-center justify-center gap-3 px-6 py-3
+      bg-white border border-grove-200 rounded-lg font-sans font-medium
+      text-bark hover:bg-grove-50 hover:border-grove-300
+      transition-all duration-200
+      focus:outline-none focus:ring-2 focus:ring-grove-500 focus:ring-offset-2
+      disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .input-field {
+    @apply w-full px-4 py-3 rounded-lg border border-grove-200
+      focus:border-grove-500 focus:ring-2 focus:ring-grove-500/20
+      focus:outline-none transition-all duration-200
+      bg-white text-bark placeholder:text-bark/40;
+  }
+
+  .input-code {
+    @apply input-field text-center text-2xl tracking-[0.5em] font-mono uppercase;
+  }
+
+  .card {
+    @apply bg-white rounded-xl border border-grove-200 shadow-sm;
+  }
+
+  .card-elevated {
+    @apply bg-white rounded-xl border border-grove-200 shadow-lg;
+  }
+
+  .badge {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium font-sans;
+  }
+
+  .badge-success {
+    @apply bg-grove-100 text-grove-800;
+  }
+
+  .badge-error {
+    @apply bg-red-100 text-red-800;
+  }
+
+  .badge-info {
+    @apply bg-blue-100 text-blue-800;
+  }
+
+  .alert {
+    @apply px-4 py-3 rounded-lg text-sm font-sans;
+  }
+
+  .alert-success {
+    @apply bg-grove-50 border border-grove-200 text-grove-700;
+  }
+
+  .alert-error {
+    @apply bg-red-50 border border-red-200 text-red-700;
+  }
+
+  .alert-info {
+    @apply bg-blue-50 border border-blue-200 text-blue-700;
+  }
+
+  .divider {
+    @apply flex items-center my-6;
+  }
+
+  .divider::before,
+  .divider::after {
+    @apply flex-1 h-px bg-grove-200;
+    content: '';
+  }
+
+  .divider span {
+    @apply px-4 text-bark/50 text-sm font-sans;
+  }
+}
+
+/* Auth gradient background */
+.auth-gradient {
+  background: linear-gradient(135deg, #f0fdf4 0%, #fefdfb 50%, #dcfce7 100%);
+}
+
+/* Subtle pulse animation for loading states */
+@keyframes pulse-soft {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+.animate-pulse-soft {
+  animation: pulse-soft 1.5s ease-in-out infinite;
+}
+
+/* Provider icon colors */
+.icon-google {
+  color: #4285f4;
+}
+
+.icon-github {
+  color: #24292f;
+}

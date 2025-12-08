@@ -1,0 +1,27 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+.svelte-kit/
+build/
+.vercel/
+.netlify/
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Cloudflare
+.wrangler/

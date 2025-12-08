@@ -11,12 +11,20 @@
 - [ ] Configure DNS for auth.grove.place
 
 ## Deployment Tasks
+
+### Backend (Worker API)
 - [ ] Run database migrations (`pnpm db:migrate`)
 - [ ] Run seed data (`pnpm db:seed`)
 - [ ] Deploy to Cloudflare (`pnpm deploy`)
 - [ ] Test all auth flows end-to-end
 - [ ] Verify rate limiting works
 - [ ] Check security headers
+
+### Frontend (SvelteKit)
+- [ ] Install frontend dependencies (`cd frontend && pnpm install`)
+- [ ] Build frontend (`cd frontend && pnpm build`)
+- [ ] Deploy to Cloudflare Pages (`cd frontend && wrangler pages deploy .svelte-kit/cloudflare`)
+- [ ] Configure custom domain for frontend (if different from API)
 
 ## Integration Tasks
 - [ ] Add GroveAuth client helpers to @autumnsgrove/groveengine

@@ -13,7 +13,7 @@ VALUES (
     '["https://grove.place", "https://admin.grove.place"]'
 );
 
--- AutumnsGrove client (main site)
+-- AutumnsGrove client (main site - autumnsgrove.com)
 INSERT OR REPLACE INTO clients (id, name, client_id, client_secret_hash, redirect_uris, allowed_origins)
 VALUES (
     'c2000000-0000-0000-0000-000000000002',
@@ -21,8 +21,8 @@ VALUES (
     'autumnsgrove',
     -- Placeholder hash - generate real secret and hash it before deployment
     'PLACEHOLDER_HASH_REPLACE_BEFORE_DEPLOY',
-    '["https://autumnsgrove.place/auth/callback"]',
-    '["https://autumnsgrove.place"]'
+    '["https://autumnsgrove.com/auth/callback"]',
+    '["https://autumnsgrove.com"]'
 );
 
 -- Initial allowed admin email

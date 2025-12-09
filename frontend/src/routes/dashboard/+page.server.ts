@@ -12,7 +12,7 @@ export const load: PageServerLoad = async ({ parent, cookies }) => {
 
   // Must be logged in
   if (!session.authenticated) {
-    throw redirect(303, '/login?return_to=/dashboard');
+    throw redirect(303, '/');
   }
 
   // Must be admin
@@ -23,8 +23,8 @@ export const load: PageServerLoad = async ({ parent, cookies }) => {
   // Get access token from cookie to fetch admin stats
   const accessToken = cookies.get('access_token');
   if (!accessToken) {
-    // No access token, try to use session to redirect to login
-    throw redirect(303, '/login?return_to=/dashboard');
+    // No access token, redirect to home to re-authenticate
+    throw redirect(303, '/');
   }
 
   try {
@@ -37,7 +37,7 @@ export const load: PageServerLoad = async ({ parent, cookies }) => {
 
     if (!statsResponse.ok) {
       if (statsResponse.status === 401 || statsResponse.status === 403) {
-        throw redirect(303, '/login?return_to=/dashboard');
+        throw redirect(303, '/');
       }
       throw new Error('Failed to fetch admin stats');
     }

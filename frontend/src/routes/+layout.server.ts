@@ -24,15 +24,21 @@ export interface SessionData {
 export const load: LayoutServerLoad = async ({ locals, cookies, fetch }) => {
   const subdomain = locals.subdomain;
 
-  // Check session status from backend via session cookie
+  // Check session status from backend via cookies
   const sessionCookie = cookies.get('session');
+  const accessToken = cookies.get('access_token');
   let sessionData: SessionData = { authenticated: false };
 
-  if (sessionCookie) {
+  // Build cookie header with available auth cookies
+  const cookieParts: string[] = [];
+  if (sessionCookie) cookieParts.push(`session=${sessionCookie}`);
+  if (accessToken) cookieParts.push(`access_token=${accessToken}`);
+
+  if (cookieParts.length > 0) {
     try {
       const response = await fetch(`${AUTH_API_URL}/session/check`, {
         headers: {
-          Cookie: `session=${sessionCookie}`,
+          Cookie: cookieParts.join('; '),
         },
       });
 

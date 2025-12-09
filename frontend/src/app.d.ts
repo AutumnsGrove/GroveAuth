@@ -11,6 +11,7 @@ declare global {
     interface Platform {
       env: {
         AUTH_API_URL: string;
+        GROVEENGINE_CLIENT_SECRET?: string;
       };
       context: {
         waitUntil(promise: Promise<unknown>): void;

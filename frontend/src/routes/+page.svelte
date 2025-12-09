@@ -1,5 +1,7 @@
 <script lang="ts">
   import Logo from '$lib/components/Logo.svelte';
+  import GoogleIcon from '$lib/components/GoogleIcon.svelte';
+  import GitHubIcon from '$lib/components/GitHubIcon.svelte';
 
   let { data } = $props();
 
@@ -8,6 +10,17 @@
   const needsLogin = data?.needsLogin;
   const error = data?.error;
   const errorDescription = data?.errorDescription;
+
+  // Build OAuth URL for admin login
+  function buildOAuthUrl(provider: string): string {
+    const state = crypto.randomUUID();
+    const params = new URLSearchParams({
+      client_id: 'groveengine',
+      redirect_uri: 'https://admin.grove.place/callback',
+      state: state
+    });
+    return `https://auth-api.grove.place/oauth/${provider}?${params}`;
+  }
 </script>
 
 <svelte:head>
@@ -32,23 +45,25 @@
       Authentication required
     </p>
 
-    <div class="card p-8 max-w-md text-center">
-      <p class="text-bark/70 font-sans mb-6">
-        To access the admin dashboard, please sign in through one of the Grove applications first.
+    <div class="card p-8 max-w-sm">
+      <p class="text-bark/70 font-sans mb-6 text-center">
+        Sign in to access the admin dashboard
       </p>
 
-      <a
-        href="https://grove.place"
-        class="inline-flex items-center justify-center gap-2 w-full px-6 py-3 bg-grove-600 hover:bg-grove-700 text-white font-sans rounded-lg transition-colors mb-4"
-      >
-        Sign in via Grove
-        <svg class="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
-          <path fill-rule="evenodd" d="M3 10a.75.75 0 01.75-.75h10.638L10.23 5.29a.75.75 0 111.04-1.08l5.5 5.25a.75.75 0 010 1.08l-5.5 5.25a.75.75 0 11-1.04-1.08l4.158-3.96H3.75A.75.75 0 013 10z" clip-rule="evenodd" />
-        </svg>
-      </a>
+      <div class="space-y-3">
+        <a href={buildOAuthUrl('google')} class="btn-provider">
+          <GoogleIcon />
+          Continue with Google
+        </a>
 
-      <p class="text-bark/50 font-sans text-sm">
-        After signing in, return to this page to access the dashboard.
+        <a href={buildOAuthUrl('github')} class="btn-provider">
+          <GitHubIcon />
+          Continue with GitHub
+        </a>
+      </div>
+
+      <p class="text-bark/50 font-sans text-sm mt-6 text-center">
+        Admin access is restricted to authorized users only.
       </p>
     </div>
 

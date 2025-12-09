@@ -28,8 +28,8 @@ CLIENT_UUID=$(uuidgen 2>/dev/null || cat /proc/sys/kernel/random/uuid 2>/dev/nul
 # Generate client secret
 CLIENT_SECRET=$(openssl rand -base64 32)
 
-# Hash the secret for storage
-CLIENT_SECRET_HASH=$(echo -n "$CLIENT_SECRET" | openssl dgst -sha256 -binary | base64)
+# Hash the secret for storage (MUST be base64url format: - instead of +, _ instead of /, no padding)
+CLIENT_SECRET_HASH=$(echo -n "$CLIENT_SECRET" | openssl dgst -sha256 -binary | base64 | tr '+/' '-_' | tr -d '=')
 
 # Build redirect URI and origin
 REDIRECT_URI="${SITE_URL}${CALLBACK_PATH}"

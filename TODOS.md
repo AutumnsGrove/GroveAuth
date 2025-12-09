@@ -1,6 +1,6 @@
 # TODOs for GroveAuth
 
-## Completed (2025-12-08)
+## Completed (2025-12-09)
 - [x] Generate RSA keypair for JWT signing
 - [x] Create Google OAuth credentials
 - [x] Create GitHub OAuth app
@@ -21,15 +21,17 @@
 - [x] Update Google OAuth redirect URI for auth-api.grove.place
 - [x] Cross-subdomain cookies working (domain=.grove.place)
 - [x] Full OAuth flow: grove.place → auth.grove.place → Google → back with tokens
-
-## In Progress
-- [ ] Fix admin.grove.place to show dashboard after login (session check not recognizing access_token cookie)
-- [ ] Remove debug error messages from grove.place callback
+- [x] Fix admin.grove.place OAuth flow (direct OAuth + token exchange + session handling)
 
 ## Next Up
 - [ ] Add GitHub OAuth redirect URI for auth-api.grove.place
 - [ ] Test login.grove.place redirect behavior
 - [ ] Test full OAuth flow end-to-end for all providers
+- [ ] Remove debug error messages from grove.place callback
+
+## Admin Dashboard Fixes
+- [ ] Dashboard not showing all registered clients (missing GroveScout, GroveMusic, etc.)
+- [ ] Verify all internal domains are registered in clients table
 
 ## Integration Tasks
 - [x] Add GroveAuth client helpers to @autumnsgrove/groveengine
@@ -49,4 +51,4 @@
 
 ---
 
-*Last updated: 2025-12-08*
+*Last updated: 2025-12-09*

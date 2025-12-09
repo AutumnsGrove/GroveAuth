@@ -14,6 +14,7 @@ import {
 } from '../db/queries.js';
 import { hashSecret } from '../utils/crypto.js';
 import { verifyAccessToken } from '../services/jwt.js';
+import { createDbSession } from '../db/session.js';
 
 const session = new Hono<{ Bindings: Env }>();
 
@@ -26,6 +27,7 @@ const session = new Hono<{ Bindings: Env }>();
  * 2. Access token in cookie (cross-subdomain auth from grove.place)
  */
 session.get('/check', async (c) => {
+  const db = createDbSession(c.env);
   const cookieHeader = c.req.header('Cookie') || '';
 
   // Try access_token first (cross-subdomain auth)
@@ -37,16 +39,16 @@ session.get('/check', async (c) => {
 
       if (payload && payload.email) {
         // Get user by email from token
-        const user = await getUserByEmail(c.env.DB, payload.email);
+        const user = await getUserByEmail(db, payload.email);
         if (user) {
           const isAdmin = user.is_admin === 1 || isEmailAdmin(user.email);
 
           // Get client info if available
           const clientId = payload.client_id as string | undefined;
-          const client = clientId ? await getClientByClientId(c.env.DB, clientId) : null;
+          const client = clientId ? await getClientByClientId(db, clientId) : null;
 
           // Get user's client preference
-          const prefs = await getUserClientPreference(c.env.DB, user.id);
+          const prefs = await getUserClientPreference(db, user.id);
 
           return c.json({
             authenticated: true,
@@ -81,23 +83,23 @@ session.get('/check', async (c) => {
 
   const sessionToken = sessionMatch[1];
   const sessionHash = await hashSecret(sessionToken);
-  const sessionData = await getSessionByTokenHash(c.env.DB, sessionHash);
+  const sessionData = await getSessionByTokenHash(db, sessionHash);
 
   if (!sessionData) {
     return c.json({ authenticated: false });
   }
 
   // Get user info
-  const user = await getUserById(c.env.DB, sessionData.user_id);
+  const user = await getUserById(db, sessionData.user_id);
   if (!user) {
     return c.json({ authenticated: false });
   }
 
   // Get client info
-  const client = await getClientByClientId(c.env.DB, sessionData.client_id);
+  const client = await getClientByClientId(db, sessionData.client_id);
 
   // Get user's client preference
-  const prefs = await getUserClientPreference(c.env.DB, sessionData.user_id);
+  const prefs = await getUserClientPreference(db, sessionData.user_id);
 
   // Check if user is admin
   const isAdmin = user.is_admin === 1 || isEmailAdmin(user.email);

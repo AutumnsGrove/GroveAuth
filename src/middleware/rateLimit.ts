@@ -3,7 +3,7 @@
  */
 
 import type { MiddlewareHandler, Context } from 'hono';
-import type { Env } from '../types.js';
+import type { Env, D1DatabaseOrSession } from '../types.js';
 import { checkRateLimit } from '../db/queries.js';
 import { getClientIP } from './security.js';
 import {
@@ -119,7 +119,7 @@ export const verifyRateLimiter = createRateLimiter({
  * Check rate limit for a specific key (for use in routes)
  */
 export async function checkRouteRateLimit(
-  c: Context<{ Bindings: Env }>,
+  db: D1DatabaseOrSession,
   keyPrefix: string,
   keyPart: string,
   limit: number,
@@ -127,7 +127,7 @@ export async function checkRouteRateLimit(
 ): Promise<{ allowed: boolean; remaining: number; retryAfter?: number }> {
   const key = `${keyPrefix}:${keyPart}`;
   const { allowed, remaining, resetAt } = await checkRateLimit(
-    c.env.DB,
+    db,
     key,
     limit,
     windowSeconds

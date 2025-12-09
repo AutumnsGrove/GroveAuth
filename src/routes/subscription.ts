@@ -15,6 +15,7 @@ import {
   getSubscriptionStatus,
 } from '../db/queries.js';
 import { verifyAccessToken } from '../services/jwt.js';
+import { createDbSession } from '../db/session.js';
 
 const subscription = new Hono<{ Bindings: Env }>();
 
@@ -39,7 +40,8 @@ subscription.get('/', async (c) => {
     return c.json({ error: 'unauthorized', error_description: 'Missing or invalid token' }, 401);
   }
 
-  const sub = await getOrCreateUserSubscription(c.env.DB, payload.sub);
+  const db = createDbSession(c.env);
+  const sub = await getOrCreateUserSubscription(db, payload.sub);
   const status = getSubscriptionStatus(sub);
 
   return c.json({
@@ -57,8 +59,9 @@ subscription.get('/:userId', async (c) => {
     return c.json({ error: 'unauthorized', error_description: 'Missing or invalid token' }, 401);
   }
 
+  const db = createDbSession(c.env);
   const userId = c.req.param('userId');
-  const sub = await getUserSubscription(c.env.DB, userId);
+  const sub = await getUserSubscription(db, userId);
 
   if (!sub) {
     return c.json({ error: 'not_found', error_description: 'Subscription not found' }, 404);
@@ -81,8 +84,9 @@ subscription.get('/:userId/can-post', async (c) => {
     return c.json({ error: 'unauthorized', error_description: 'Missing or invalid token' }, 401);
   }
 
+  const db = createDbSession(c.env);
   const userId = c.req.param('userId');
-  const result = await canUserCreatePost(c.env.DB, userId);
+  const result = await canUserCreatePost(db, userId);
 
   return c.json(result);
 });
@@ -97,6 +101,7 @@ subscription.post('/:userId/post-count', async (c) => {
     return c.json({ error: 'unauthorized', error_description: 'Missing or invalid token' }, 401);
   }
 
+  const db = createDbSession(c.env);
   const userId = c.req.param('userId');
 
   let body: { action?: 'increment' | 'decrement'; count?: number };
@@ -109,11 +114,11 @@ subscription.post('/:userId/post-count', async (c) => {
   let updatedSub;
 
   if (body.action === 'increment') {
-    updatedSub = await incrementPostCount(c.env.DB, userId);
+    updatedSub = await incrementPostCount(db, userId);
   } else if (body.action === 'decrement') {
-    updatedSub = await decrementPostCount(c.env.DB, userId);
+    updatedSub = await decrementPostCount(db, userId);
   } else if (typeof body.count === 'number') {
-    updatedSub = await setPostCount(c.env.DB, userId, body.count);
+    updatedSub = await setPostCount(db, userId, body.count);
   } else {
     return c.json({
       error: 'invalid_request',
@@ -143,6 +148,7 @@ subscription.put('/:userId/tier', async (c) => {
     return c.json({ error: 'unauthorized', error_description: 'Missing or invalid token' }, 401);
   }
 
+  const db = createDbSession(c.env);
   const userId = c.req.param('userId');
 
   let body: { tier?: string };
@@ -161,9 +167,9 @@ subscription.put('/:userId/tier', async (c) => {
   }
 
   // Ensure subscription exists first
-  await getOrCreateUserSubscription(c.env.DB, userId);
+  await getOrCreateUserSubscription(db, userId);
 
-  const updatedSub = await updateSubscriptionTier(c.env.DB, userId, body.tier as SubscriptionTier);
+  const updatedSub = await updateSubscriptionTier(db, userId, body.tier as SubscriptionTier);
 
   if (!updatedSub) {
     return c.json({ error: 'not_found', error_description: 'Subscription not found' }, 404);

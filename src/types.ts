@@ -2,6 +2,10 @@
  * GroveAuth Type Definitions
  */
 
+// D1 session type for read replication support
+// Sessions ensure sequential consistency across queries within a request
+export type D1DatabaseOrSession = D1Database | ReturnType<D1Database['withSession']>;
+
 // Environment bindings for Cloudflare Workers
 export interface Env {
   // D1 Database

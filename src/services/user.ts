@@ -2,7 +2,7 @@
  * User Service - User management and authentication helpers
  */
 
-import type { User, AuthProvider } from '../types.js';
+import type { User, AuthProvider, D1DatabaseOrSession } from '../types.js';
 import {
   getUserByEmail,
   getOrCreateUser,
@@ -15,7 +15,7 @@ import {
  * Returns the user if email is in allowlist, null otherwise
  */
 export async function authenticateUser(
-  db: D1Database,
+  db: D1DatabaseOrSession,
   data: {
     email: string;
     name: string | null;
@@ -69,7 +69,7 @@ export async function authenticateUser(
 /**
  * Get user by email (for token verification etc.)
  */
-export async function getUserForEmail(db: D1Database, email: string): Promise<User | null> {
+export async function getUserForEmail(db: D1DatabaseOrSession, email: string): Promise<User | null> {
   return getUserByEmail(db, email);
 }
 
@@ -77,7 +77,7 @@ export async function getUserForEmail(db: D1Database, email: string): Promise<Us
  * Log a logout event
  */
 export async function logLogout(
-  db: D1Database,
+  db: D1DatabaseOrSession,
   userId: string,
   context: {
     client_id?: string;
@@ -98,7 +98,7 @@ export async function logLogout(
  * Log a token exchange event
  */
 export async function logTokenExchange(
-  db: D1Database,
+  db: D1DatabaseOrSession,
   userId: string,
   context: {
     client_id: string;
@@ -119,7 +119,7 @@ export async function logTokenExchange(
  * Log a token refresh event
  */
 export async function logTokenRefresh(
-  db: D1Database,
+  db: D1DatabaseOrSession,
   userId: string,
   context: {
     client_id: string;
@@ -140,7 +140,7 @@ export async function logTokenRefresh(
  * Log a token revocation event
  */
 export async function logTokenRevoke(
-  db: D1Database,
+  db: D1DatabaseOrSession,
   userId: string,
   context: {
     client_id?: string;

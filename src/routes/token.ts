@@ -13,6 +13,7 @@ import {
   getRefreshTokenByHash,
   revokeRefreshToken,
 } from '../db/queries.js';
+import { createDbSession } from '../db/session.js';
 import { parseFormData } from '../utils/validation.js';
 import {
   generateRefreshToken,
@@ -36,6 +37,8 @@ const token = new Hono<{ Bindings: Env }>();
  * POST /token - Exchange authorization code for tokens
  */
 token.post('/', async (c) => {
+  const db = createDbSession(c.env);
+
   // Parse form data
   const bodyText = await c.req.text();
   const params = parseFormData(bodyText);
@@ -44,9 +47,9 @@ token.post('/', async (c) => {
 
   // Route to appropriate handler based on grant type
   if (grantType === 'authorization_code') {
-    return handleAuthorizationCodeGrant(c, params);
+    return handleAuthorizationCodeGrant(c, params, db);
   } else if (grantType === 'refresh_token') {
-    return handleRefreshTokenGrant(c, params);
+    return handleRefreshTokenGrant(c, params, db);
   } else {
     return c.json(
       { error: 'unsupported_grant_type', error_description: 'Grant type not supported' },
@@ -59,16 +62,20 @@ token.post('/', async (c) => {
  * POST /token/refresh - Refresh access token (alias for grant_type=refresh_token)
  */
 token.post('/refresh', async (c) => {
+  const db = createDbSession(c.env);
+
   const bodyText = await c.req.text();
   const params = parseFormData(bodyText);
   params.grant_type = 'refresh_token';
-  return handleRefreshTokenGrant(c, params);
+  return handleRefreshTokenGrant(c, params, db);
 });
 
 /**
  * POST /token/revoke - Revoke a refresh token
  */
 token.post('/revoke', async (c) => {
+  const db = createDbSession(c.env);
+
   const bodyText = await c.req.text();
   const params = parseFormData(bodyText);
 
@@ -82,7 +89,7 @@ token.post('/revoke', async (c) => {
   }
 
   // Validate client credentials
-  const client = await getClientByClientId(c.env.DB, client_id);
+  const client = await getClientByClientId(db, client_id);
   if (!client) {
     return c.json({ error: 'invalid_client', error_description: 'Client not found' }, 401);
   }
@@ -94,13 +101,13 @@ token.post('/revoke', async (c) => {
 
   // Revoke the token
   const tokenHash = await hashSecret(tokenValue);
-  const existingToken = await getRefreshTokenByHash(c.env.DB, tokenHash);
+  const existingToken = await getRefreshTokenByHash(db, tokenHash);
 
   if (existingToken) {
-    await revokeRefreshToken(c.env.DB, tokenHash);
+    await revokeRefreshToken(db, tokenHash);
 
     // Log the revocation
-    await logTokenRevoke(c.env.DB, existingToken.user_id, {
+    await logTokenRevoke(db, existingToken.user_id, {
       client_id,
       ip_address: getClientIP(c.req.raw),
       user_agent: getUserAgent(c.req.raw),
@@ -116,7 +123,8 @@ token.post('/revoke', async (c) => {
  */
 async function handleAuthorizationCodeGrant(
   c: Context<{ Bindings: Env }>,
-  params: Record<string, string>
+  params: Record<string, string>,
+  db: ReturnType<D1Database['withSession']>
 ) {
   const { code, redirect_uri, client_id, client_secret, code_verifier } = params;
 
@@ -128,7 +136,7 @@ async function handleAuthorizationCodeGrant(
   }
 
   // Rate limit check
-  const rateLimit = await checkRouteRateLimit(c, 'token', client_id, RATE_LIMIT_TOKEN_PER_CLIENT);
+  const rateLimit = await checkRouteRateLimit(db, 'token', client_id, RATE_LIMIT_TOKEN_PER_CLIENT);
   if (!rateLimit.allowed) {
     return c.json(
       { error: 'rate_limit', error_description: 'Too many requests', retry_after: rateLimit.retryAfter },
@@ -137,7 +145,7 @@ async function handleAuthorizationCodeGrant(
   }
 
   // Validate client credentials
-  const client = await getClientByClientId(c.env.DB, client_id);
+  const client = await getClientByClientId(db, client_id);
   if (!client) {
     return c.json({ error: 'invalid_client', error_description: 'Client not found' }, 401);
   }
@@ -148,7 +156,7 @@ async function handleAuthorizationCodeGrant(
   }
 
   // Get and validate auth code
-  const authCode = await getAuthCode(c.env.DB, code);
+  const authCode = await getAuthCode(db, code);
 
   if (!authCode) {
     return c.json({ error: 'invalid_grant', error_description: 'Authorization code not found' }, 400);
@@ -188,10 +196,10 @@ async function handleAuthorizationCodeGrant(
   }
 
   // Mark auth code as used
-  await markAuthCodeUsed(c.env.DB, code);
+  await markAuthCodeUsed(db, code);
 
   // Get user
-  const user = await getUserById(c.env.DB, authCode.user_id);
+  const user = await getUserById(db, authCode.user_id);
   if (!user) {
     return c.json({ error: 'invalid_grant', error_description: 'User not found' }, 400);
   }
@@ -202,7 +210,7 @@ async function handleAuthorizationCodeGrant(
   const refreshTokenHash = await hashSecret(refreshToken);
   const refreshExpiresAt = new Date(Date.now() + REFRESH_TOKEN_EXPIRY * 1000).toISOString();
 
-  await createRefreshToken(c.env.DB, {
+  await createRefreshToken(db, {
     token_hash: refreshTokenHash,
     user_id: user.id,
     client_id: client_id,
@@ -210,7 +218,7 @@ async function handleAuthorizationCodeGrant(
   });
 
   // Log the exchange
-  await logTokenExchange(c.env.DB, user.id, {
+  await logTokenExchange(db, user.id, {
     client_id,
     ip_address: getClientIP(c.req.raw),
     user_agent: getUserAgent(c.req.raw),
@@ -232,7 +240,8 @@ async function handleAuthorizationCodeGrant(
  */
 async function handleRefreshTokenGrant(
   c: Context<{ Bindings: Env }>,
-  params: Record<string, string>
+  params: Record<string, string>,
+  db: ReturnType<D1Database['withSession']>
 ) {
   const { refresh_token, client_id, client_secret } = params;
 
@@ -244,7 +253,7 @@ async function handleRefreshTokenGrant(
   }
 
   // Rate limit check
-  const rateLimit = await checkRouteRateLimit(c, 'token', client_id, RATE_LIMIT_TOKEN_PER_CLIENT);
+  const rateLimit = await checkRouteRateLimit(db, 'token', client_id, RATE_LIMIT_TOKEN_PER_CLIENT);
   if (!rateLimit.allowed) {
     return c.json(
       { error: 'rate_limit', error_description: 'Too many requests', retry_after: rateLimit.retryAfter },
@@ -253,7 +262,7 @@ async function handleRefreshTokenGrant(
   }
 
   // Validate client credentials
-  const client = await getClientByClientId(c.env.DB, client_id);
+  const client = await getClientByClientId(db, client_id);
   if (!client) {
     return c.json({ error: 'invalid_client', error_description: 'Client not found' }, 401);
   }
@@ -265,7 +274,7 @@ async function handleRefreshTokenGrant(
 
   // Validate refresh token
   const tokenHash = await hashSecret(refresh_token);
-  const existingToken = await getRefreshTokenByHash(c.env.DB, tokenHash);
+  const existingToken = await getRefreshTokenByHash(db, tokenHash);
 
   if (!existingToken) {
     return c.json({ error: 'invalid_grant', error_description: 'Invalid refresh token' }, 400);
@@ -280,10 +289,10 @@ async function handleRefreshTokenGrant(
   }
 
   // Revoke old refresh token (rotation)
-  await revokeRefreshToken(c.env.DB, tokenHash);
+  await revokeRefreshToken(db, tokenHash);
 
   // Get user
-  const user = await getUserById(c.env.DB, existingToken.user_id);
+  const user = await getUserById(db, existingToken.user_id);
   if (!user) {
     return c.json({ error: 'invalid_grant', error_description: 'User not found' }, 400);
   }
@@ -294,7 +303,7 @@ async function handleRefreshTokenGrant(
   const newRefreshTokenHash = await hashSecret(newRefreshToken);
   const refreshExpiresAt = new Date(Date.now() + REFRESH_TOKEN_EXPIRY * 1000).toISOString();
 
-  await createRefreshToken(c.env.DB, {
+  await createRefreshToken(db, {
     token_hash: newRefreshTokenHash,
     user_id: user.id,
     client_id: client_id,
@@ -302,7 +311,7 @@ async function handleRefreshTokenGrant(
   });
 
   // Log the refresh
-  await logTokenRefresh(c.env.DB, user.id, {
+  await logTokenRefresh(db, user.id, {
     client_id,
     ip_address: getClientIP(c.req.raw),
     user_agent: getUserAgent(c.req.raw),

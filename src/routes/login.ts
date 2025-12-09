@@ -5,6 +5,7 @@
 import { Hono } from 'hono';
 import type { Env, LoginParams } from '../types.js';
 import { getClientByClientId, validateClientRedirectUri } from '../db/queries.js';
+import { createDbSession } from '../db/session.js';
 import { loginParamsSchema } from '../utils/validation.js';
 import { getLoginPageHTML } from '../templates/login.js';
 
@@ -14,6 +15,8 @@ const login = new Hono<{ Bindings: Env }>();
  * GET /login - Display login page with provider selection
  */
 login.get('/', async (c) => {
+  const db = createDbSession(c.env);
+
   // Parse and validate query parameters
   const params = {
     client_id: c.req.query('client_id'),
@@ -38,7 +41,7 @@ login.get('/', async (c) => {
   const validParams = result.data as LoginParams;
 
   // Validate client_id exists
-  const client = await getClientByClientId(c.env.DB, validParams.client_id);
+  const client = await getClientByClientId(db, validParams.client_id);
   if (!client) {
     return c.html(
       getLoginPageHTML({
@@ -51,7 +54,7 @@ login.get('/', async (c) => {
 
   // Validate redirect_uri is registered for this client
   const validRedirect = await validateClientRedirectUri(
-    c.env.DB,
+    db,
     validParams.client_id,
     validParams.redirect_uri
   );

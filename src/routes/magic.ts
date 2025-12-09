@@ -4,6 +4,7 @@
 
 import { Hono } from 'hono';
 import type { Env } from '../types.js';
+import { createDbSession } from '../db/session.js';
 import {
   getClientByClientId,
   validateClientRedirectUri,
@@ -38,6 +39,8 @@ const magic = new Hono<{ Bindings: Env }>();
  * POST /magic/send - Send magic code email
  */
 magic.post('/send', async (c) => {
+  const db = createDbSession(c.env);
+
   // Parse request body
   let body: unknown;
   try {
@@ -59,7 +62,7 @@ magic.post('/send', async (c) => {
 
   // Check rate limits
   const ipRateLimit = await checkRouteRateLimit(
-    c,
+    db,
     'magic_ip',
     getClientIP(c.req.raw),
     RATE_LIMIT_MAGIC_SEND_PER_IP
@@ -72,7 +75,7 @@ magic.post('/send', async (c) => {
   }
 
   const emailRateLimit = await checkRouteRateLimit(
-    c,
+    db,
     'magic_email',
     email.toLowerCase(),
     RATE_LIMIT_MAGIC_SEND_PER_EMAIL
@@ -85,30 +88,30 @@ magic.post('/send', async (c) => {
   }
 
   // Validate client
-  const client = await getClientByClientId(c.env.DB, client_id);
+  const client = await getClientByClientId(db, client_id);
   if (!client) {
     return c.json({ error: 'invalid_client', message: 'Client not found' }, 400);
   }
 
   // Validate redirect URI
-  const validRedirect = await validateClientRedirectUri(c.env.DB, client_id, redirect_uri);
+  const validRedirect = await validateClientRedirectUri(db, client_id, redirect_uri);
   if (!validRedirect) {
     return c.json({ error: 'invalid_request', message: 'Invalid redirect_uri' }, 400);
   }
 
   // Always return success to prevent email enumeration
   // But only actually send email if allowed
-  const allowed = await isEmailAllowed(c.env.DB, email);
+  const allowed = await isEmailAllowed(db, email);
 
   if (allowed) {
     // Check if account is locked
-    const lockStatus = await isAccountLocked(c.env.DB, email);
+    const lockStatus = await isAccountLocked(db, email);
     if (!lockStatus.locked) {
       // Generate and store magic code
       const code = generateMagicCode();
       const expiresAt = new Date(Date.now() + MAGIC_CODE_EXPIRY * 1000).toISOString();
 
-      await createMagicCode(c.env.DB, {
+      await createMagicCode(db, {
         email: email,
         code: code,
         expires_at: expiresAt,
@@ -118,7 +121,7 @@ magic.post('/send', async (c) => {
       await sendMagicCodeEmail(c.env, email, code);
 
       // Log the event
-      await createAuditLog(c.env.DB, {
+      await createAuditLog(db, {
         event_type: 'magic_code_sent',
         client_id: client_id,
         ip_address: getClientIP(c.req.raw),
@@ -139,6 +142,8 @@ magic.post('/send', async (c) => {
  * POST /magic/verify - Verify magic code and get auth code
  */
 magic.post('/verify', async (c) => {
+  const db = createDbSession(c.env);
+
   // Parse request body
   let body: unknown;
   try {
@@ -159,19 +164,19 @@ magic.post('/verify', async (c) => {
   const { email, code, client_id, redirect_uri, state } = result.data;
 
   // Validate client
-  const client = await getClientByClientId(c.env.DB, client_id);
+  const client = await getClientByClientId(db, client_id);
   if (!client) {
     return c.json({ error: 'invalid_client', message: 'Client not found' }, 400);
   }
 
   // Validate redirect URI
-  const validRedirect = await validateClientRedirectUri(c.env.DB, client_id, redirect_uri);
+  const validRedirect = await validateClientRedirectUri(db, client_id, redirect_uri);
   if (!validRedirect) {
     return c.json({ error: 'invalid_request', message: 'Invalid redirect_uri' }, 400);
   }
 
   // Check if account is locked
-  const lockStatus = await isAccountLocked(c.env.DB, email);
+  const lockStatus = await isAccountLocked(db, email);
   if (lockStatus.locked) {
     return c.json(
       {
@@ -184,11 +189,11 @@ magic.post('/verify', async (c) => {
   }
 
   // Verify magic code
-  const magicCode = await getMagicCode(c.env.DB, email, code);
+  const magicCode = await getMagicCode(db, email, code);
 
   if (!magicCode) {
     // Record failed attempt
-    const failResult = await recordFailedAttempt(c.env.DB, email, MAX_FAILED_ATTEMPTS, LOCKOUT_DURATION);
+    const failResult = await recordFailedAttempt(db, email, MAX_FAILED_ATTEMPTS, LOCKOUT_DURATION);
 
     if (failResult.locked) {
       return c.json(
@@ -205,14 +210,14 @@ magic.post('/verify', async (c) => {
   }
 
   // Mark code as used
-  await markMagicCodeUsed(c.env.DB, magicCode.id);
+  await markMagicCodeUsed(db, magicCode.id);
 
   // Clear failed attempts on success
-  await clearFailedAttempts(c.env.DB, email);
+  await clearFailedAttempts(db, email);
 
   // Authenticate user (checks allowlist, creates/updates user)
   const user = await authenticateUser(
-    c.env.DB,
+    db,
     {
       email: email,
       name: null,
@@ -235,7 +240,7 @@ magic.post('/verify', async (c) => {
   const authCode = generateAuthCode();
   const expiresAt = new Date(Date.now() + AUTH_CODE_EXPIRY * 1000).toISOString();
 
-  await createAuthCode(c.env.DB, {
+  await createAuthCode(db, {
     code: authCode,
     client_id: client_id,
     user_id: user.id,
@@ -244,7 +249,7 @@ magic.post('/verify', async (c) => {
   });
 
   // Log the verification
-  await createAuditLog(c.env.DB, {
+  await createAuditLog(db, {
     event_type: 'magic_code_verified',
     user_id: user.id,
     client_id: client_id,

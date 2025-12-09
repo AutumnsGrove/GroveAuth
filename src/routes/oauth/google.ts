@@ -4,6 +4,7 @@
 
 import { Hono } from 'hono';
 import type { Env } from '../../types.js';
+import { createDbSession } from '../../db/session.js';
 import {
   getClientByClientId,
   validateClientRedirectUri,
@@ -25,6 +26,8 @@ const google = new Hono<{ Bindings: Env }>();
  * GET /oauth/google - Initiate Google OAuth flow
  */
 google.get('/', async (c) => {
+  const db = createDbSession(c.env);
+
   // Parse and validate query parameters
   const params = {
     client_id: c.req.query('client_id'),
@@ -43,14 +46,14 @@ google.get('/', async (c) => {
   const validParams = result.data;
 
   // Validate client
-  const client = await getClientByClientId(c.env.DB, validParams.client_id);
+  const client = await getClientByClientId(db, validParams.client_id);
   if (!client) {
     return c.json({ error: 'invalid_client', error_description: 'Client not found' }, 400);
   }
 
   // Validate redirect URI
   const validRedirect = await validateClientRedirectUri(
-    c.env.DB,
+    db,
     validParams.client_id,
     validParams.redirect_uri
   );
@@ -63,7 +66,7 @@ google.get('/', async (c) => {
   const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString(); // 10 minutes
 
   // Save OAuth state
-  await saveOAuthState(c.env.DB, {
+  await saveOAuthState(db, {
     state: internalState,
     client_id: validParams.client_id,
     redirect_uri: validParams.redirect_uri,
@@ -84,6 +87,8 @@ google.get('/', async (c) => {
  * GET /oauth/google/callback - Handle Google OAuth callback
  */
 google.get('/callback', async (c) => {
+  const db = createDbSession(c.env);
+
   const code = c.req.query('code');
   const state = c.req.query('state');
   const error = c.req.query('error');
@@ -99,13 +104,13 @@ google.get('/callback', async (c) => {
   }
 
   // Get saved OAuth state
-  const savedState = await getOAuthState(c.env.DB, state);
+  const savedState = await getOAuthState(db, state);
   if (!savedState) {
     return c.json({ error: 'invalid_state', error_description: 'State not found or expired' }, 400);
   }
 
   // Delete used state
-  await deleteOAuthState(c.env.DB, state);
+  await deleteOAuthState(db, state);
 
   // Exchange code for tokens
   const callbackUrl = `${c.env.AUTH_BASE_URL}/oauth/google/callback`;
@@ -136,7 +141,7 @@ google.get('/callback', async (c) => {
 
   // Authenticate user (checks allowlist, creates/updates user)
   const user = await authenticateUser(
-    c.env.DB,
+    db,
     {
       email: googleUser.email,
       name: googleUser.name || null,
@@ -165,7 +170,7 @@ google.get('/callback', async (c) => {
   const authCode = generateAuthCode();
   const expiresAt = new Date(Date.now() + AUTH_CODE_EXPIRY * 1000).toISOString();
 
-  await createAuthCode(c.env.DB, {
+  await createAuthCode(db, {
     code: authCode,
     client_id: savedState.client_id,
     user_id: user.id,

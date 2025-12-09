@@ -21,6 +21,7 @@ import type {
   UserSession,
   UserClientPreference,
   AdminStats,
+  D1DatabaseOrSession,
 } from '../types.js';
 import { TIER_POST_LIMITS, ADMIN_EMAILS } from '../types.js';
 import { generateUUID } from '../utils/crypto.js';
@@ -28,7 +29,7 @@ import { generateUUID } from '../utils/crypto.js';
 // ==================== Clients ====================
 
 export async function getClientByClientId(
-  db: D1Database,
+  db: D1DatabaseOrSession,
   clientId: string
 ): Promise<Client | null> {
   const result = await db
@@ -39,7 +40,7 @@ export async function getClientByClientId(
 }
 
 export async function validateClientRedirectUri(
-  db: D1Database,
+  db: D1DatabaseOrSession,
   clientId: string,
   redirectUri: string
 ): Promise<boolean> {
@@ -51,7 +52,7 @@ export async function validateClientRedirectUri(
 }
 
 export async function validateClientOrigin(
-  db: D1Database,
+  db: D1DatabaseOrSession,
   clientId: string,
   origin: string
 ): Promise<boolean> {
@@ -64,12 +65,12 @@ export async function validateClientOrigin(
 
 // ==================== Users ====================
 
-export async function getUserById(db: D1Database, id: string): Promise<User | null> {
+export async function getUserById(db: D1DatabaseOrSession, id: string): Promise<User | null> {
   const result = await db.prepare('SELECT * FROM users WHERE id = ?').bind(id).first<User>();
   return result;
 }
 
-export async function getUserByEmail(db: D1Database, email: string): Promise<User | null> {
+export async function getUserByEmail(db: D1DatabaseOrSession, email: string): Promise<User | null> {
   const result = await db
     .prepare('SELECT * FROM users WHERE email = ?')
     .bind(email.toLowerCase())
@@ -78,7 +79,7 @@ export async function getUserByEmail(db: D1Database, email: string): Promise<Use
 }
 
 export async function createUser(
-  db: D1Database,
+  db: D1DatabaseOrSession,
   data: {
     email: string;
     name: string | null;
@@ -102,7 +103,7 @@ export async function createUser(
 }
 
 export async function updateUserLogin(
-  db: D1Database,
+  db: D1DatabaseOrSession,
   id: string,
   data: { name?: string | null; avatar_url?: string | null }
 ): Promise<void> {
@@ -117,7 +118,7 @@ export async function updateUserLogin(
 }
 
 export async function getOrCreateUser(
-  db: D1Database,
+  db: D1DatabaseOrSession,
   data: {
     email: string;
     name: string | null;
@@ -138,7 +139,7 @@ export async function getOrCreateUser(
 
 // ==================== Allowed Emails ====================
 
-export async function isEmailAllowed(db: D1Database, email: string): Promise<boolean> {
+export async function isEmailAllowed(db: D1DatabaseOrSession, email: string): Promise<boolean> {
   const result = await db
     .prepare('SELECT email FROM allowed_emails WHERE email = ?')
     .bind(email.toLowerCase())
@@ -149,7 +150,7 @@ export async function isEmailAllowed(db: D1Database, email: string): Promise<boo
 // ==================== Auth Codes ====================
 
 export async function createAuthCode(
-  db: D1Database,
+  db: D1DatabaseOrSession,
   data: {
     code: string;
     client_id: string;
@@ -177,7 +178,7 @@ export async function createAuthCode(
     .run();
 }
 
-export async function getAuthCode(db: D1Database, code: string): Promise<AuthCode | null> {
+export async function getAuthCode(db: D1DatabaseOrSession, code: string): Promise<AuthCode | null> {
   const result = await db
     .prepare('SELECT * FROM auth_codes WHERE code = ?')
     .bind(code)
@@ -185,11 +186,11 @@ export async function getAuthCode(db: D1Database, code: string): Promise<AuthCod
   return result;
 }
 
-export async function markAuthCodeUsed(db: D1Database, code: string): Promise<void> {
+export async function markAuthCodeUsed(db: D1DatabaseOrSession, code: string): Promise<void> {
   await db.prepare('UPDATE auth_codes SET used = 1 WHERE code = ?').bind(code).run();
 }
 
-export async function cleanupExpiredAuthCodes(db: D1Database): Promise<void> {
+export async function cleanupExpiredAuthCodes(db: D1DatabaseOrSession): Promise<void> {
   const now = new Date().toISOString();
   await db.prepare('DELETE FROM auth_codes WHERE expires_at < ? OR used = 1').bind(now).run();
 }
@@ -197,7 +198,7 @@ export async function cleanupExpiredAuthCodes(db: D1Database): Promise<void> {
 // ==================== Refresh Tokens ====================
 
 export async function createRefreshToken(
-  db: D1Database,
+  db: D1DatabaseOrSession,
   data: {
     token_hash: string;
     user_id: string;
@@ -219,7 +220,7 @@ export async function createRefreshToken(
 }
 
 export async function getRefreshTokenByHash(
-  db: D1Database,
+  db: D1DatabaseOrSession,
   tokenHash: string
 ): Promise<RefreshToken | null> {
   const result = await db
@@ -229,15 +230,15 @@ export async function getRefreshTokenByHash(
   return result;
 }
 
-export async function revokeRefreshToken(db: D1Database, tokenHash: string): Promise<void> {
+export async function revokeRefreshToken(db: D1DatabaseOrSession, tokenHash: string): Promise<void> {
   await db.prepare('UPDATE refresh_tokens SET revoked = 1 WHERE token_hash = ?').bind(tokenHash).run();
 }
 
-export async function revokeAllUserTokens(db: D1Database, userId: string): Promise<void> {
+export async function revokeAllUserTokens(db: D1DatabaseOrSession, userId: string): Promise<void> {
   await db.prepare('UPDATE refresh_tokens SET revoked = 1 WHERE user_id = ?').bind(userId).run();
 }
 
-export async function cleanupExpiredRefreshTokens(db: D1Database): Promise<void> {
+export async function cleanupExpiredRefreshTokens(db: D1DatabaseOrSession): Promise<void> {
   const now = new Date().toISOString();
   await db.prepare('DELETE FROM refresh_tokens WHERE expires_at < ? OR revoked = 1').bind(now).run();
 }
@@ -245,7 +246,7 @@ export async function cleanupExpiredRefreshTokens(db: D1Database): Promise<void>
 // ==================== Magic Codes ====================
 
 export async function createMagicCode(
-  db: D1Database,
+  db: D1DatabaseOrSession,
   data: {
     email: string;
     code: string;
@@ -261,7 +262,7 @@ export async function createMagicCode(
 }
 
 export async function getMagicCode(
-  db: D1Database,
+  db: D1DatabaseOrSession,
   email: string,
   code: string
 ): Promise<MagicCode | null> {
@@ -275,11 +276,11 @@ export async function getMagicCode(
   return result;
 }
 
-export async function markMagicCodeUsed(db: D1Database, id: string): Promise<void> {
+export async function markMagicCodeUsed(db: D1DatabaseOrSession, id: string): Promise<void> {
   await db.prepare('UPDATE magic_codes SET used = 1 WHERE id = ?').bind(id).run();
 }
 
-export async function cleanupExpiredMagicCodes(db: D1Database): Promise<void> {
+export async function cleanupExpiredMagicCodes(db: D1DatabaseOrSession): Promise<void> {
   const now = new Date().toISOString();
   await db.prepare('DELETE FROM magic_codes WHERE expires_at < ? OR used = 1').bind(now).run();
 }
@@ -287,7 +288,7 @@ export async function cleanupExpiredMagicCodes(db: D1Database): Promise<void> {
 // ==================== Rate Limiting ====================
 
 export async function checkRateLimit(
-  db: D1Database,
+  db: D1DatabaseOrSession,
   key: string,
   limit: number,
   windowSeconds: number
@@ -340,7 +341,7 @@ export async function checkRateLimit(
 // ==================== Failed Attempts ====================
 
 export async function recordFailedAttempt(
-  db: D1Database,
+  db: D1DatabaseOrSession,
   email: string,
   maxAttempts: number,
   lockoutSeconds: number
@@ -380,12 +381,12 @@ export async function recordFailedAttempt(
   return { locked: false, lockedUntil: null };
 }
 
-export async function clearFailedAttempts(db: D1Database, email: string): Promise<void> {
+export async function clearFailedAttempts(db: D1DatabaseOrSession, email: string): Promise<void> {
   await db.prepare('DELETE FROM failed_attempts WHERE email = ?').bind(email.toLowerCase()).run();
 }
 
 export async function isAccountLocked(
-  db: D1Database,
+  db: D1DatabaseOrSession,
   email: string
 ): Promise<{ locked: boolean; lockedUntil: Date | null }> {
   const now = new Date();
@@ -404,7 +405,7 @@ export async function isAccountLocked(
 // ==================== Audit Log ====================
 
 export async function createAuditLog(
-  db: D1Database,
+  db: D1DatabaseOrSession,
   data: {
     event_type: AuditEventType;
     user_id?: string;
@@ -436,7 +437,7 @@ export async function createAuditLog(
 // ==================== OAuth State ====================
 
 export async function saveOAuthState(
-  db: D1Database,
+  db: D1DatabaseOrSession,
   data: {
     state: string;
     client_id: string;
@@ -464,7 +465,7 @@ export async function saveOAuthState(
     .run();
 }
 
-export async function getOAuthState(db: D1Database, state: string): Promise<OAuthState | null> {
+export async function getOAuthState(db: D1DatabaseOrSession, state: string): Promise<OAuthState | null> {
   const now = new Date().toISOString();
   const result = await db
     .prepare('SELECT * FROM oauth_states WHERE state = ? AND expires_at > ?')
@@ -482,22 +483,22 @@ export async function getOAuthState(db: D1Database, state: string): Promise<OAut
   };
 }
 
-export async function deleteOAuthState(db: D1Database, state: string): Promise<void> {
+export async function deleteOAuthState(db: D1DatabaseOrSession, state: string): Promise<void> {
   await db.prepare('DELETE FROM oauth_states WHERE state = ?').bind(state).run();
 }
 
-export async function cleanupExpiredOAuthStates(db: D1Database): Promise<void> {
+export async function cleanupExpiredOAuthStates(db: D1DatabaseOrSession): Promise<void> {
   const now = new Date().toISOString();
   await db.prepare('DELETE FROM oauth_states WHERE expires_at < ?').bind(now).run();
 }
 
 // ==================== User Subscriptions ====================
 
-export async function getUserSubscription(db: D1Database, userId: string): Promise<UserSubscription | null> {
+export async function getUserSubscription(db: D1DatabaseOrSession, userId: string): Promise<UserSubscription | null> {
   return db.prepare('SELECT * FROM user_subscriptions WHERE user_id = ?').bind(userId).first<UserSubscription>();
 }
 
-export async function createUserSubscription(db: D1Database, userId: string, tier: SubscriptionTier = 'starter'): Promise<UserSubscription> {
+export async function createUserSubscription(db: D1DatabaseOrSession, userId: string, tier: SubscriptionTier = 'starter'): Promise<UserSubscription> {
   const id = generateUUID();
   const postLimit = TIER_POST_LIMITS[tier];
   const now = new Date().toISOString();
@@ -516,13 +517,13 @@ export async function createUserSubscription(db: D1Database, userId: string, tie
   return (await getUserSubscription(db, userId))!;
 }
 
-export async function getOrCreateUserSubscription(db: D1Database, userId: string): Promise<UserSubscription> {
+export async function getOrCreateUserSubscription(db: D1DatabaseOrSession, userId: string): Promise<UserSubscription> {
   const existing = await getUserSubscription(db, userId);
   if (existing) return existing;
   return createUserSubscription(db, userId, 'starter');
 }
 
-export async function incrementPostCount(db: D1Database, userId: string): Promise<UserSubscription | null> {
+export async function incrementPostCount(db: D1DatabaseOrSession, userId: string): Promise<UserSubscription | null> {
   const subscription = await getUserSubscription(db, userId);
   if (!subscription) return null;
 
@@ -542,7 +543,7 @@ export async function incrementPostCount(db: D1Database, userId: string): Promis
   return getUserSubscription(db, userId);
 }
 
-export async function decrementPostCount(db: D1Database, userId: string): Promise<UserSubscription | null> {
+export async function decrementPostCount(db: D1DatabaseOrSession, userId: string): Promise<UserSubscription | null> {
   const subscription = await getUserSubscription(db, userId);
   if (!subscription) return null;
 
@@ -562,7 +563,7 @@ export async function decrementPostCount(db: D1Database, userId: string): Promis
   return getUserSubscription(db, userId);
 }
 
-export async function setPostCount(db: D1Database, userId: string, count: number): Promise<UserSubscription | null> {
+export async function setPostCount(db: D1DatabaseOrSession, userId: string, count: number): Promise<UserSubscription | null> {
   const subscription = await getUserSubscription(db, userId);
   if (!subscription) return null;
 
@@ -585,7 +586,7 @@ export async function setPostCount(db: D1Database, userId: string, count: number
   return getUserSubscription(db, userId);
 }
 
-export async function updateSubscriptionTier(db: D1Database, userId: string, newTier: SubscriptionTier): Promise<UserSubscription | null> {
+export async function updateSubscriptionTier(db: D1DatabaseOrSession, userId: string, newTier: SubscriptionTier): Promise<UserSubscription | null> {
   const subscription = await getUserSubscription(db, userId);
   if (!subscription) return null;
 
@@ -646,13 +647,13 @@ export function getSubscriptionStatus(subscription: UserSubscription): Subscript
   };
 }
 
-export async function canUserCreatePost(db: D1Database, userId: string): Promise<{ allowed: boolean; status: SubscriptionStatus; subscription: UserSubscription }> {
+export async function canUserCreatePost(db: D1DatabaseOrSession, userId: string): Promise<{ allowed: boolean; status: SubscriptionStatus; subscription: UserSubscription }> {
   const subscription = await getOrCreateUserSubscription(db, userId);
   const status = getSubscriptionStatus(subscription);
   return { allowed: status.can_create_post, status, subscription };
 }
 
-export async function createSubscriptionAuditLog(db: D1Database, data: {
+export async function createSubscriptionAuditLog(db: D1DatabaseOrSession, data: {
   user_id: string;
   event_type: SubscriptionAuditEventType;
   old_value?: string;
@@ -667,7 +668,7 @@ export async function createSubscriptionAuditLog(db: D1Database, data: {
 // ==================== User Sessions ====================
 
 export async function createUserSession(
-  db: D1Database,
+  db: D1DatabaseOrSession,
   data: {
     user_id: string;
     client_id: string;
@@ -685,7 +686,7 @@ export async function createUserSession(
 }
 
 export async function getSessionByTokenHash(
-  db: D1Database,
+  db: D1DatabaseOrSession,
   tokenHash: string
 ): Promise<UserSession | null> {
   const now = new Date().toISOString();
@@ -694,30 +695,30 @@ export async function getSessionByTokenHash(
   ).bind(tokenHash, now).first<UserSession>();
 }
 
-export async function updateSessionLastUsed(db: D1Database, sessionId: string): Promise<void> {
+export async function updateSessionLastUsed(db: D1DatabaseOrSession, sessionId: string): Promise<void> {
   const now = new Date().toISOString();
   await db.prepare(`UPDATE user_sessions SET last_used_at = ? WHERE id = ?`).bind(now, sessionId).run();
 }
 
-export async function revokeSession(db: D1Database, sessionId: string): Promise<void> {
+export async function revokeSession(db: D1DatabaseOrSession, sessionId: string): Promise<void> {
   await db.prepare(`UPDATE user_sessions SET is_active = 0 WHERE id = ?`).bind(sessionId).run();
 }
 
-export async function revokeAllUserSessions(db: D1Database, userId: string): Promise<void> {
+export async function revokeAllUserSessions(db: D1DatabaseOrSession, userId: string): Promise<void> {
   await db.prepare(`UPDATE user_sessions SET is_active = 0 WHERE user_id = ?`).bind(userId).run();
 }
 
 // ==================== User Client Preferences ====================
 
 export async function getUserClientPreference(
-  db: D1Database,
+  db: D1DatabaseOrSession,
   userId: string
 ): Promise<UserClientPreference | null> {
   return db.prepare(`SELECT * FROM user_client_preferences WHERE user_id = ?`).bind(userId).first<UserClientPreference>();
 }
 
 export async function updateLastUsedClient(
-  db: D1Database,
+  db: D1DatabaseOrSession,
   userId: string,
   clientId: string
 ): Promise<void> {
@@ -731,11 +732,11 @@ export async function updateLastUsedClient(
 
 // ==================== Client Domain Queries ====================
 
-export async function getClientByDomain(db: D1Database, domain: string): Promise<Client | null> {
+export async function getClientByDomain(db: D1DatabaseOrSession, domain: string): Promise<Client | null> {
   return db.prepare(`SELECT * FROM clients WHERE domain = ?`).bind(domain).first<Client>();
 }
 
-export async function getAllClients(db: D1Database): Promise<Client[]> {
+export async function getAllClients(db: D1DatabaseOrSession): Promise<Client[]> {
   const result = await db.prepare(`SELECT * FROM clients ORDER BY name`).all<Client>();
   return result.results || [];
 }
@@ -746,13 +747,13 @@ export function isEmailAdmin(email: string): boolean {
   return ADMIN_EMAILS.includes(email.toLowerCase());
 }
 
-export async function isUserAdmin(db: D1Database, userId: string): Promise<boolean> {
+export async function isUserAdmin(db: D1DatabaseOrSession, userId: string): Promise<boolean> {
   const user = await getUserById(db, userId);
   if (!user) return false;
   return user.is_admin === 1 || isEmailAdmin(user.email);
 }
 
-export async function getAdminStats(db: D1Database): Promise<AdminStats> {
+export async function getAdminStats(db: D1DatabaseOrSession): Promise<AdminStats> {
   // Total users
   const totalUsersResult = await db.prepare(`SELECT COUNT(*) as count FROM users`).first<{ count: number }>();
 
@@ -788,7 +789,7 @@ export async function getAdminStats(db: D1Database): Promise<AdminStats> {
 }
 
 export async function getAllUsers(
-  db: D1Database,
+  db: D1DatabaseOrSession,
   limit: number = 50,
   offset: number = 0
 ): Promise<User[]> {
@@ -799,7 +800,7 @@ export async function getAllUsers(
 }
 
 export async function getAuditLogs(
-  db: D1Database,
+  db: D1DatabaseOrSession,
   options: { limit?: number; offset?: number; eventType?: string }
 ): Promise<AuditLog[]> {
   const { limit = 100, offset = 0, eventType } = options;

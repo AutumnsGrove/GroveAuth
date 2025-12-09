@@ -4,6 +4,7 @@
 
 import { Hono } from 'hono';
 import type { Env } from '../types.js';
+import { createDbSession } from '../db/session.js';
 
 const health = new Hono<{ Bindings: Env }>();
 
@@ -11,12 +12,13 @@ const health = new Hono<{ Bindings: Env }>();
  * GET /health - Health check endpoint
  */
 health.get('/', async (c) => {
+  const db = createDbSession(c.env);
   const timestamp = new Date().toISOString();
 
   // Optionally check database connectivity
   let dbStatus = 'unknown';
   try {
-    await c.env.DB.prepare('SELECT 1').first();
+    await db.prepare('SELECT 1').first();
     dbStatus = 'healthy';
   } catch {
     dbStatus = 'unhealthy';

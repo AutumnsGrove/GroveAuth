@@ -13,6 +13,7 @@ import {
   getAllClients,
 } from '../db/queries.js';
 import { verifyAccessToken } from '../services/jwt.js';
+import { createDbSession } from '../db/session.js';
 
 const admin = new Hono<{ Bindings: Env }>();
 
@@ -33,7 +34,8 @@ admin.use('/*', async (c, next) => {
     return c.json({ error: 'invalid_token', error_description: 'Token is invalid or expired' }, 401);
   }
 
-  const isAdmin = await isUserAdmin(c.env.DB, payload.sub);
+  const db = createDbSession(c.env);
+  const isAdmin = await isUserAdmin(db, payload.sub);
   if (!isAdmin) {
     return c.json({ error: 'forbidden', error_description: 'Admin access required' }, 403);
   }
@@ -45,7 +47,8 @@ admin.use('/*', async (c, next) => {
  * GET /admin/stats - Get dashboard statistics
  */
 admin.get('/stats', async (c) => {
-  const stats = await getAdminStats(c.env.DB);
+  const db = createDbSession(c.env);
+  const stats = await getAdminStats(db);
   return c.json(stats);
 });
 
@@ -53,10 +56,11 @@ admin.get('/stats', async (c) => {
  * GET /admin/users - List all users with pagination
  */
 admin.get('/users', async (c) => {
+  const db = createDbSession(c.env);
   const limit = parseInt(c.req.query('limit') || '50');
   const offset = parseInt(c.req.query('offset') || '0');
 
-  const users = await getAllUsers(c.env.DB, limit, offset);
+  const users = await getAllUsers(db, limit, offset);
 
   return c.json({ users });
 });
@@ -65,11 +69,12 @@ admin.get('/users', async (c) => {
  * GET /admin/audit-log - Get audit log entries with filtering
  */
 admin.get('/audit-log', async (c) => {
+  const db = createDbSession(c.env);
   const limit = parseInt(c.req.query('limit') || '100');
   const offset = parseInt(c.req.query('offset') || '0');
   const eventType = c.req.query('event_type') || undefined;
 
-  const logs = await getAuditLogs(c.env.DB, { limit, offset, eventType });
+  const logs = await getAuditLogs(db, { limit, offset, eventType });
 
   return c.json({ logs });
 });
@@ -78,7 +83,8 @@ admin.get('/audit-log', async (c) => {
  * GET /admin/clients - List all registered clients
  */
 admin.get('/clients', async (c) => {
-  const clients = await getAllClients(c.env.DB);
+  const db = createDbSession(c.env);
+  const clients = await getAllClients(db);
 
   // Remove sensitive data
   const safeClients = clients.map(client => ({

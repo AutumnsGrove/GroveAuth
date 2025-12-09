@@ -8,6 +8,7 @@ import { getUserById, revokeAllUserTokens } from '../db/queries.js';
 import { verifyAccessToken } from '../services/jwt.js';
 import { logLogout } from '../services/user.js';
 import { getClientIP, getUserAgent } from '../middleware/security.js';
+import { createDbSession } from '../db/session.js';
 
 const verify = new Hono<{ Bindings: Env }>();
 
@@ -15,6 +16,7 @@ const verify = new Hono<{ Bindings: Env }>();
  * GET /verify - Verify an access token (OAuth 2.0 Token Introspection)
  */
 verify.get('/', async (c) => {
+  // Note: This route only verifies JWTs, no database access needed
   const authHeader = c.req.header('Authorization');
 
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -49,6 +51,7 @@ verify.get('/', async (c) => {
  * GET /userinfo - Get current user information
  */
 verify.get('/userinfo', async (c) => {
+  const db = createDbSession(c.env);
   const authHeader = c.req.header('Authorization');
 
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -63,7 +66,7 @@ verify.get('/userinfo', async (c) => {
   }
 
   // Get full user info from database
-  const user = await getUserById(c.env.DB, payload.sub);
+  const user = await getUserById(db, payload.sub);
 
   if (!user) {
     return c.json({ error: 'invalid_token', error_description: 'User not found' }, 401);
@@ -84,6 +87,7 @@ verify.get('/userinfo', async (c) => {
  * POST /logout - Logout user and revoke all tokens
  */
 verify.post('/logout', async (c) => {
+  const db = createDbSession(c.env);
   const authHeader = c.req.header('Authorization');
 
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -98,10 +102,10 @@ verify.post('/logout', async (c) => {
   }
 
   // Revoke all refresh tokens for this user
-  await revokeAllUserTokens(c.env.DB, payload.sub);
+  await revokeAllUserTokens(db, payload.sub);
 
   // Log the logout
-  await logLogout(c.env.DB, payload.sub, {
+  await logLogout(db, payload.sub, {
     client_id: payload.client_id,
     ip_address: getClientIP(c.req.raw),
     user_agent: getUserAgent(c.req.raw),

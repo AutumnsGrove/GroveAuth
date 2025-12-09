@@ -80,6 +80,30 @@
     </div>
   </div>
 
+  <!-- D1 Replication Status -->
+  {#if stats.replication}
+    <div class="card p-4 mb-8 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-2 h-2 rounded-full {stats.replication.served_by_region ? 'bg-grove-500' : 'bg-amber-400'}"></div>
+        <div>
+          <span class="text-sm font-sans text-bark/60">D1 Read Replication:</span>
+          {#if stats.replication.served_by_region}
+            <span class="text-sm font-sans text-bark ml-1">
+              Region <span class="font-mono text-grove-600">{stats.replication.served_by_region}</span>
+              {#if stats.replication.served_by_primary === false}
+                <span class="text-xs text-grove-500 ml-1">(replica)</span>
+              {:else if stats.replication.served_by_primary === true}
+                <span class="text-xs text-amber-600 ml-1">(primary)</span>
+              {/if}
+            </span>
+          {:else}
+            <span class="text-sm font-sans text-bark/50 ml-1">Not available (local dev or not enabled)</span>
+          {/if}
+        </div>
+      </div>
+    </div>
+  {/if}
+
   <!-- Two Column Layout -->
   <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
     <!-- Clients List -->
@@ -149,6 +173,8 @@
   <footer class="mt-12 text-center">
     <div class="flex items-center justify-center gap-4 text-sm font-sans text-bark/50">
       <a href="/" class="hover:text-grove-600 transition-colors">Home</a>
+      <span class="text-grove-300">·</span>
+      <a href="https://autumnsgrove.com/admin" class="hover:text-grove-600 transition-colors">My Admin</a>
       <span class="text-grove-300">·</span>
       <a href="https://grove.place" class="hover:text-grove-600 transition-colors">Grove</a>
     </div>

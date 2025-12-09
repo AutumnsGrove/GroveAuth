@@ -49,7 +49,26 @@ admin.use('/*', async (c, next) => {
 admin.get('/stats', async (c) => {
   const db = createDbSession(c.env);
   const stats = await getAdminStats(db);
-  return c.json(stats);
+
+  // Get replication info from the last query
+  const replicationInfo = {
+    served_by_region: null as string | null,
+    served_by_primary: null as boolean | null,
+  };
+
+  // Run a simple query to get current replication status
+  try {
+    const result = await db.prepare('SELECT 1').run();
+    replicationInfo.served_by_region = result.meta?.served_by_region ?? null;
+    replicationInfo.served_by_primary = result.meta?.served_by_primary ?? null;
+  } catch {
+    // Ignore errors, replication info is optional
+  }
+
+  return c.json({
+    ...stats,
+    replication: replicationInfo,
+  });
 });
 
 /**

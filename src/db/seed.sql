@@ -7,8 +7,8 @@ VALUES (
     'c1000000-0000-0000-0000-000000000001',
     'GroveEngine',
     'groveengine',
-    '8op_Z6PynY4vcDKq2ckjwTG9z-5_iJztFajFDMbd8uY',
-    '["https://grove.place/auth/callback", "https://admin.grove.place/auth/callback"]',
+    'UUmHuEAZ07nnhhU91L1zWBdTPsZXR68JQgPW5N5aJZE',
+    '["https://grove.place/auth/callback", "https://admin.grove.place/auth/callback", "https://admin.grove.place/callback"]',
     '["https://grove.place", "https://admin.grove.place"]'
 );
 

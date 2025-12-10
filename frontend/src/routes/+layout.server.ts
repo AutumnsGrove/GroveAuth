@@ -21,8 +21,11 @@ export interface SessionData {
   last_used_client_id?: string | null;
 }
 
-export const load: LayoutServerLoad = async ({ locals, cookies, fetch }) => {
+export const load: LayoutServerLoad = async ({ locals, cookies, fetch, url }) => {
   const subdomain = locals.subdomain;
+
+  // Debug: pass through the detected hostname
+  const debugHostname = url.hostname;
 
   // Check session status from backend via cookies
   const sessionCookie = cookies.get('session');
@@ -54,5 +57,6 @@ export const load: LayoutServerLoad = async ({ locals, cookies, fetch }) => {
   return {
     subdomain,
     session: sessionData,
+    debugHostname,
   };
 };

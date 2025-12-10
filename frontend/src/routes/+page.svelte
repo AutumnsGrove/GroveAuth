@@ -35,6 +35,7 @@
 
 <!-- DEBUG: Remove after testing -->
 <div class="fixed bottom-4 left-4 bg-black/80 text-white p-4 rounded text-xs font-mono z-50">
+  <div>hostname: {data?.debugHostname ?? 'undefined'}</div>
   <div>subdomain: {data?.subdomain ?? 'undefined'}</div>
   <div>needsLogin: {data?.needsLogin ?? 'undefined'}</div>
   <div>isAdmin: {isAdmin}</div>

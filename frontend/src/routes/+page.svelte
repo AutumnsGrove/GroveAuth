@@ -33,16 +33,6 @@
   <meta name="description" content="Centralized authentication service for AutumnsGrove properties. Secure login with Google, GitHub, or email magic codes." />
 </svelte:head>
 
-<!-- DEBUG: Remove after testing -->
-<div class="fixed bottom-4 left-4 bg-black/80 text-white p-4 rounded text-xs font-mono z-50 max-w-md">
-  <div>host header: {data?.debugHostHeader ?? 'undefined'}</div>
-  <div>x-forwarded-host: {data?.debugXForwardedHost ?? 'undefined'}</div>
-  <div>resolved hostname: {data?.debugHostname ?? 'undefined'}</div>
-  <div>subdomain: {data?.subdomain ?? 'undefined'}</div>
-  <div>needsLogin: {data?.needsLogin ?? 'undefined'}</div>
-  <div>isAdmin: {isAdmin}</div>
-</div>
-
 {#if isAdmin && needsLogin}
   <!-- Admin Login Required -->
   <main class="min-h-screen flex flex-col items-center justify-center px-6 py-16">

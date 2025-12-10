@@ -24,11 +24,6 @@ export interface SessionData {
 export const load: LayoutServerLoad = async ({ locals, cookies, fetch }) => {
   const subdomain = locals.subdomain;
 
-  // Debug: pass through the detected hostname info
-  const debugHostname = (locals as any).debugHostname;
-  const debugHostHeader = (locals as any).debugHostHeader;
-  const debugXForwardedHost = (locals as any).debugXForwardedHost;
-
   // Check session status from backend via cookies
   const sessionCookie = cookies.get('session');
   const accessToken = cookies.get('access_token');
@@ -59,8 +54,5 @@ export const load: LayoutServerLoad = async ({ locals, cookies, fetch }) => {
   return {
     subdomain,
     session: sessionData,
-    debugHostname,
-    debugHostHeader,
-    debugXForwardedHost,
   };
 };

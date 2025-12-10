@@ -130,7 +130,7 @@
 
   <!-- Card -->
   <div class="card-elevated w-full max-w-sm p-8">
-    <h1 class="text-2xl font-serif text-bark mb-2 text-center">Sign In</h1>
+    <h1 class="text-2xl font-serif text-bark dark:text-gray-100 mb-2 text-center">Sign In</h1>
 
     {#if !data.params}
       <!-- Error: Missing params -->
@@ -142,7 +142,7 @@
         Back to Home
       </a>
     {:else}
-      <p class="text-bark/60 font-sans text-center mb-6">
+      <p class="text-bark/60 dark:text-gray-400 font-sans text-center mb-6">
         {#if view === 'providers'}
           Choose how you'd like to sign in
         {:else if view === 'email'}
@@ -208,7 +208,7 @@
       {#if view === 'email'}
         <form onsubmit={(e) => { e.preventDefault(); sendMagicCode(); }}>
           <div class="mb-4">
-            <label for="email" class="block text-sm font-sans font-medium text-bark mb-2">
+            <label for="email" class="block text-sm font-sans font-medium text-bark dark:text-gray-200 mb-2">
               Email address
             </label>
             <input
@@ -233,7 +233,7 @@
           <button
             type="button"
             onclick={() => { view = 'providers'; email = ''; errorMessage = ''; }}
-            class="w-full text-sm text-bark/60 hover:text-grove-600 font-sans transition-colors"
+            class="w-full text-sm text-bark/60 dark:text-gray-400 hover:text-grove-600 dark:hover:text-grove-400 font-sans transition-colors"
           >
             Back to sign in options
           </button>
@@ -244,7 +244,7 @@
       {#if view === 'code'}
         <form onsubmit={(e) => { e.preventDefault(); verifyMagicCode(); }}>
           <div class="mb-4">
-            <label for="code" class="block text-sm font-sans font-medium text-bark mb-2">
+            <label for="code" class="block text-sm font-sans font-medium text-bark dark:text-gray-200 mb-2">
               Enter 6-digit code
             </label>
             <input
@@ -273,7 +273,7 @@
             <button
               type="button"
               onclick={() => { sendMagicCode(); }}
-              class="text-sm text-bark/60 hover:text-grove-600 font-sans transition-colors"
+              class="text-sm text-bark/60 dark:text-gray-400 hover:text-grove-600 dark:hover:text-grove-400 font-sans transition-colors"
               disabled={isLoading}
             >
               Resend code
@@ -281,7 +281,7 @@
             <button
               type="button"
               onclick={() => { view = 'email'; code = ''; errorMessage = ''; successMessage = ''; }}
-              class="text-sm text-bark/60 hover:text-grove-600 font-sans transition-colors"
+              class="text-sm text-bark/60 dark:text-gray-400 hover:text-grove-600 dark:hover:text-grove-400 font-sans transition-colors"
             >
               Use a different email
             </button>
@@ -292,7 +292,7 @@
   </div>
 
   <!-- Footer -->
-  <p class="mt-8 text-sm text-bark/50 font-sans">
-    Powered by <a href="https://grove.place" class="hover:text-grove-600 transition-colors">GroveAuth</a>
+  <p class="mt-8 text-sm text-bark/50 dark:text-gray-500 font-sans">
+    Powered by <a href="https://grove.place" class="hover:text-grove-600 dark:hover:text-grove-400 transition-colors">GroveAuth</a>
   </p>
 </main>

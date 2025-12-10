@@ -3,36 +3,39 @@
 @tailwind utilities;
 
 @font-face {
-  font-family: 'Quicksand';
-  src: url('/fonts/Quicksand-Regular.ttf') format('truetype');
-  font-weight: 400;
+  font-family: 'Lexend';
+  src: url('/fonts/Lexend-Regular.ttf') format('truetype');
+  font-weight: normal;
   font-style: normal;
   font-display: swap;
 }
 
-@font-face {
-  font-family: 'Quicksand';
-  src: url('/fonts/Quicksand-Medium.ttf') format('truetype');
-  font-weight: 500;
-  font-style: normal;
-  font-display: swap;
+:root {
+  --bg-primary: #fefdfb;
+  --bg-card: #ffffff;
+  --text-primary: #3d2914;
+  --text-muted: rgba(61, 41, 20, 0.6);
+  --border-color: #bbf7d0;
 }
 
-@font-face {
-  font-family: 'Quicksand';
-  src: url('/fonts/Quicksand-SemiBold.ttf') format('truetype');
-  font-weight: 600;
-  font-style: normal;
-  font-display: swap;
+.dark {
+  --bg-primary: #1f2937;
+  --bg-card: #374151;
+  --text-primary: #f9fafb;
+  --text-muted: #9ca3af;
+  --border-color: #4b5563;
 }
 
 @layer base {
   html {
-    font-family: 'Quicksand', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-family: 'Lexend', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   }
 
   body {
-    @apply bg-cream text-bark antialiased;
+    @apply antialiased;
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    transition: background-color 0.2s ease, color 0.2s ease;
   }
 }
 
@@ -132,9 +135,42 @@
   }
 }
 
-/* Auth gradient background */
-.auth-gradient {
-  background: linear-gradient(135deg, #f0fdf4 0%, #fefdfb 50%, #dcfce7 100%);
+/* Dark mode card styles */
+.dark .card,
+.dark .card-elevated {
+  background-color: var(--bg-card);
+  border-color: var(--border-color);
+}
+
+.dark .btn-secondary {
+  background-color: var(--bg-card);
+  border-color: var(--border-color);
+  color: var(--text-primary);
+}
+
+.dark .btn-secondary:hover {
+  background-color: #4b5563;
+}
+
+.dark .btn-provider {
+  background-color: var(--bg-card);
+  border-color: var(--border-color);
+  color: var(--text-primary);
+}
+
+.dark .btn-provider:hover {
+  background-color: #4b5563;
+  border-color: #6b7280;
+}
+
+.dark .input-field {
+  background-color: var(--bg-card);
+  border-color: var(--border-color);
+  color: var(--text-primary);
+}
+
+.dark .input-field::placeholder {
+  color: var(--text-muted);
 }
 
 /* Subtle pulse animation for loading states */

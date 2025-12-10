@@ -1,6 +1,7 @@
 /** @type {import('tailwindcss').Config} */
 export default {
   content: ['./src/**/*.{html,js,svelte,ts}'],
+  darkMode: 'class',
   theme: {
     extend: {
       colors: {
@@ -34,8 +35,8 @@ export default {
         }
       },
       fontFamily: {
-        serif: ['Quicksand', 'Georgia', 'Cambria', 'Times New Roman', 'serif'],
-        sans: ['Quicksand', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+        serif: ['Lexend', 'Georgia', 'Cambria', 'Times New Roman', 'serif'],
+        sans: ['Lexend', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
         mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'monospace']
       }
     }

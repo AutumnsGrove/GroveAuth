@@ -14,7 +14,7 @@
 </script>
 
 <svg
-  class="{sizes[size]} text-grove-600 {className}"
+  class="{sizes[size]} text-grove-600 dark:text-grove-400 {className}"
   viewBox="0 0 100 100"
   fill="none"
   xmlns="http://www.w3.org/2000/svg"

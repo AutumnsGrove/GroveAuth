@@ -34,12 +34,13 @@
 </svelte:head>
 
 <!-- DEBUG: Remove after testing -->
-<div class="fixed bottom-4 left-4 bg-black/80 text-white p-4 rounded text-xs font-mono z-50">
-  <div>hostname: {data?.debugHostname ?? 'undefined'}</div>
+<div class="fixed bottom-4 left-4 bg-black/80 text-white p-4 rounded text-xs font-mono z-50 max-w-md">
+  <div>host header: {data?.debugHostHeader ?? 'undefined'}</div>
+  <div>x-forwarded-host: {data?.debugXForwardedHost ?? 'undefined'}</div>
+  <div>resolved hostname: {data?.debugHostname ?? 'undefined'}</div>
   <div>subdomain: {data?.subdomain ?? 'undefined'}</div>
   <div>needsLogin: {data?.needsLogin ?? 'undefined'}</div>
   <div>isAdmin: {isAdmin}</div>
-  <div>session: {JSON.stringify(data?.session ?? 'undefined')}</div>
 </div>
 
 {#if isAdmin && needsLogin}

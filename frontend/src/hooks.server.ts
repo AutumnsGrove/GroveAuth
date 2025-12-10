@@ -5,10 +5,13 @@
 import type { Handle } from '@sveltejs/kit';
 
 export const handle: Handle = async ({ event, resolve }) => {
-  // Try multiple sources for hostname detection on Cloudflare Pages
-  const hostname = event.url.hostname
-    || event.request.headers.get('host')?.split(':')[0]
-    || '';
+  // On Cloudflare Pages with custom domains, we need to check headers
+  // The Host header contains the original requested hostname
+  const hostHeader = event.request.headers.get('host') || '';
+  const xForwardedHost = event.request.headers.get('x-forwarded-host') || '';
+
+  // Prefer x-forwarded-host if available, otherwise use host header
+  const hostname = xForwardedHost || hostHeader;
 
   // Detect which subdomain we're on
   if (hostname.includes('login.grove.place') || hostname.startsWith('login.')) {
@@ -19,8 +22,10 @@ export const handle: Handle = async ({ event, resolve }) => {
     event.locals.subdomain = 'auth';
   }
 
-  // Debug: Log what we're seeing (check in Cloudflare Pages logs)
-  console.log('[hooks] hostname:', hostname, '-> subdomain:', event.locals.subdomain);
+  // Store debug info
+  (event.locals as any).debugHostname = hostname;
+  (event.locals as any).debugHostHeader = hostHeader;
+  (event.locals as any).debugXForwardedHost = xForwardedHost;
 
   return resolve(event);
 };

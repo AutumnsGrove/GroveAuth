@@ -21,11 +21,13 @@ export interface SessionData {
   last_used_client_id?: string | null;
 }
 
-export const load: LayoutServerLoad = async ({ locals, cookies, fetch, url }) => {
+export const load: LayoutServerLoad = async ({ locals, cookies, fetch }) => {
   const subdomain = locals.subdomain;
 
-  // Debug: pass through the detected hostname
-  const debugHostname = url.hostname;
+  // Debug: pass through the detected hostname info
+  const debugHostname = (locals as any).debugHostname;
+  const debugHostHeader = (locals as any).debugHostHeader;
+  const debugXForwardedHost = (locals as any).debugXForwardedHost;
 
   // Check session status from backend via cookies
   const sessionCookie = cookies.get('session');
@@ -58,5 +60,7 @@ export const load: LayoutServerLoad = async ({ locals, cookies, fetch, url }) =>
     subdomain,
     session: sessionData,
     debugHostname,
+    debugHostHeader,
+    debugXForwardedHost,
   };
 };

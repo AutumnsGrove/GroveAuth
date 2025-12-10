@@ -5,12 +5,13 @@
 import type { Handle } from '@sveltejs/kit';
 
 export const handle: Handle = async ({ event, resolve }) => {
-  const host = event.request.headers.get('host') || '';
+  // Use event.url.hostname which is more reliable on Cloudflare Pages
+  const hostname = event.url.hostname;
 
   // Detect which subdomain we're on
-  if (host.startsWith('login.') || host.includes('login.grove.place')) {
+  if (hostname.startsWith('login.') || hostname === 'login.grove.place') {
     event.locals.subdomain = 'login';
-  } else if (host.startsWith('admin.') || host.includes('admin.grove.place')) {
+  } else if (hostname.startsWith('admin.') || hostname === 'admin.grove.place') {
     event.locals.subdomain = 'admin';
   } else {
     event.locals.subdomain = 'auth';

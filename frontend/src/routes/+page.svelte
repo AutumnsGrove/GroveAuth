@@ -5,11 +5,12 @@
 
   let { data } = $props();
 
-  const isAdmin = data?.subdomain === 'admin';
-  const isLogin = data?.subdomain === 'login';
-  const needsLogin = data?.needsLogin;
-  const error = data?.error;
-  const errorDescription = data?.errorDescription;
+  // Use $derived for reactive values from data
+  let isAdmin = $derived(data?.subdomain === 'admin');
+  let isLogin = $derived(data?.subdomain === 'login');
+  let needsLogin = $derived(data?.needsLogin);
+  let error = $derived(data?.error);
+  let errorDescription = $derived(data?.errorDescription);
 
   // Build OAuth URL for admin login
   function buildOAuthUrl(provider: string): string {

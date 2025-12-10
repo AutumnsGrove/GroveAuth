@@ -33,6 +33,14 @@
   <meta name="description" content="Centralized authentication service for AutumnsGrove properties. Secure login with Google, GitHub, or email magic codes." />
 </svelte:head>
 
+<!-- DEBUG: Remove after testing -->
+<div class="fixed bottom-4 left-4 bg-black/80 text-white p-4 rounded text-xs font-mono z-50">
+  <div>subdomain: {data?.subdomain ?? 'undefined'}</div>
+  <div>needsLogin: {data?.needsLogin ?? 'undefined'}</div>
+  <div>isAdmin: {isAdmin}</div>
+  <div>session: {JSON.stringify(data?.session ?? 'undefined')}</div>
+</div>
+
 {#if isAdmin && needsLogin}
   <!-- Admin Login Required -->
   <main class="min-h-screen flex flex-col items-center justify-center px-6 py-16">

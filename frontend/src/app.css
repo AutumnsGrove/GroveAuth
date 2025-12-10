@@ -19,11 +19,11 @@
 }
 
 .dark {
-  --bg-primary: #1f2937;
-  --bg-card: #374151;
+  --bg-primary: #111827;
+  --bg-card: #1f2937;
   --text-primary: #f9fafb;
   --text-muted: #9ca3af;
-  --border-color: #4b5563;
+  --border-color: #374151;
 }
 
 @layer base {

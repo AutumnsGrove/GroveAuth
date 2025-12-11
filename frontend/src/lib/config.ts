@@ -24,5 +24,13 @@ export const config = {
     adminUsers: '/admin/users',
     adminAuditLog: '/admin/audit-log',
     adminClients: '/admin/clients',
+    // Minecraft endpoints
+    minecraftStatus: '/minecraft/status',
+    minecraftStart: '/minecraft/start',
+    minecraftStop: '/minecraft/stop',
+    minecraftWhitelist: '/minecraft/whitelist',
+    minecraftCommand: '/minecraft/command',
+    minecraftSync: '/minecraft/sync',
+    minecraftHistory: '/minecraft/history',
   }
 };

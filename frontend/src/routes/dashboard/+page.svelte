@@ -202,6 +202,26 @@
     </div>
   </div>
 
+  <!-- Quick Links -->
+  <div class="mt-8">
+    <h3 class="text-lg font-serif text-bark dark:text-gray-100 mb-4">Quick Links</h3>
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      <a href="/dashboard/minecraft" class="card p-4 hover:border-grove-400 dark:hover:border-grove-600 transition-colors group">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-lg bg-grove-100 dark:bg-gray-600 flex items-center justify-center group-hover:bg-grove-200 dark:group-hover:bg-gray-500 transition-colors">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-grove-600 dark:text-grove-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01" />
+            </svg>
+          </div>
+          <div>
+            <p class="font-sans text-bark dark:text-gray-100 font-medium">Minecraft Server</p>
+            <p class="text-xs text-bark/50 dark:text-gray-400 font-sans">On-demand server management</p>
+          </div>
+        </div>
+      </a>
+    </div>
+  </div>
+
   <!-- Footer -->
   <footer class="mt-12 text-center">
     <div class="flex items-center justify-center gap-4 text-sm font-sans text-bark/50 dark:text-gray-500">

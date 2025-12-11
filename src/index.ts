@@ -21,6 +21,7 @@ import health from './routes/health.js';
 import subscription from './routes/subscription.js';
 import admin from './routes/admin.js';
 import session from './routes/session.js';
+import minecraft from './routes/minecraft.js';
 
 // Create the main Hono app
 const app = new Hono<{ Bindings: Env }>();
@@ -78,6 +79,7 @@ app.route('/health', health);
 app.route('/subscription', subscription);
 app.route('/admin', admin);
 app.route('/session', session);
+app.route('/minecraft', minecraft);
 
 // Root - show API info
 app.get('/', (c) => {
@@ -120,6 +122,15 @@ app.get('/', (c) => {
       },
       session: {
         check: 'GET /session/check',
+      },
+      minecraft: {
+        status: 'GET /minecraft/status',
+        start: 'POST /minecraft/start',
+        stop: 'POST /minecraft/stop',
+        whitelist: 'GET/POST /minecraft/whitelist',
+        command: 'POST /minecraft/command',
+        sync: 'POST /minecraft/sync',
+        history: 'GET /minecraft/history',
       },
     },
   });

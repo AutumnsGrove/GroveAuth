@@ -124,10 +124,16 @@
 
   // Calculate current session cost
   function calculateSessionCost(): number {
-    if (!serverStatus || !serverStatus.started_at) return 0;
-    const hoursRunning = (Date.now() - new Date(serverStatus.started_at).getTime()) / (1000 * 60 * 60);
-    const hourlyRate = serverStatus.region === 'eu' ? 0.0085 : 0.028;
-    return hoursRunning * hourlyRate;
+    // Use the cost from API if available
+    if (serverStatus?.costs?.currentSession) {
+      return serverStatus.costs.currentSession;
+    }
+    return 0;
+  }
+
+  // Get hourly rate from API or default
+  function getHourlyRate(): number {
+    return serverStatus?.costs?.hourlyRate || (serverStatus?.region === 'eu' ? 0.0119 : 0.0119);
   }
 
   // API actions
@@ -490,10 +496,8 @@
       <h3 class="text-sm font-sans text-bark/60 dark:text-gray-400 mb-3">Session Cost</h3>
       <p class="text-3xl font-serif text-bark dark:text-gray-100">{formatCost(calculateSessionCost())}</p>
       <p class="text-xs text-bark/50 dark:text-gray-500 font-sans mt-1">
-        {#if serverStatus?.region === 'eu'}
-          $0.0085/hr (EU)
-        {:else if serverStatus?.region === 'us'}
-          $0.028/hr (US)
+        {#if serverStatus?.region}
+          ${getHourlyRate().toFixed(4)}/hr ({serverStatus.region.toUpperCase()})
         {:else}
           --
         {/if}
@@ -527,7 +531,7 @@
         {/if}
       </div>
       <p class="text-lg font-serif text-bark dark:text-gray-100">
-        {formatDate(serverStatus?.last_backup)}
+        {formatDate(serverStatus?.lastWorldSync)}
       </p>
     </div>
 
@@ -535,14 +539,14 @@
     <div class="card p-6">
       <h3 class="text-sm font-sans text-bark/60 dark:text-gray-400 mb-3">Uptime</h3>
       <p class="text-2xl font-serif text-bark dark:text-gray-100">
-        {#if serverStatus?.started_at && isServerOnline}
-          {formatDuration(Math.floor((Date.now() - new Date(serverStatus.started_at).getTime()) / 1000))}
+        {#if serverStatus?.uptime && isServerOnline}
+          {formatDuration(serverStatus.uptime)}
         {:else}
           --
         {/if}
       </p>
-      {#if serverStatus?.started_at}
-        <p class="text-xs text-bark/50 dark:text-gray-500 font-sans mt-1">Since {formatDate(serverStatus.started_at)}</p>
+      {#if serverStatus?.uptime && isServerOnline}
+        <p class="text-xs text-bark/50 dark:text-gray-500 font-sans mt-1">Server running</p>
       {/if}
     </div>
   </div>
@@ -642,23 +646,23 @@
   <div class="card p-6 mb-6">
     <h3 class="text-lg font-serif text-bark dark:text-gray-100 mb-4">Session History</h3>
 
-    {#if history?.monthly}
+    {#if history?.thisMonth}
       <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         <div class="p-3 bg-grove-50/50 dark:bg-gray-600/50 rounded-lg">
           <p class="text-xs text-bark/60 dark:text-gray-400 font-sans">This Month</p>
-          <p class="text-lg font-serif text-bark dark:text-gray-100">{formatCost(history.monthly.total_cost)}</p>
+          <p class="text-lg font-serif text-bark dark:text-gray-100">{formatCost(history.thisMonth.totalCost)}</p>
         </div>
         <div class="p-3 bg-grove-50/50 dark:bg-gray-600/50 rounded-lg">
           <p class="text-xs text-bark/60 dark:text-gray-400 font-sans">Hours</p>
-          <p class="text-lg font-serif text-bark dark:text-gray-100">{(history.monthly.total_hours || 0).toFixed(1)}h</p>
+          <p class="text-lg font-serif text-bark dark:text-gray-100">{(history.thisMonth.totalHours || 0).toFixed(1)}h</p>
         </div>
         <div class="p-3 bg-grove-50/50 dark:bg-gray-600/50 rounded-lg">
           <p class="text-xs text-bark/60 dark:text-gray-400 font-sans">Sessions</p>
-          <p class="text-lg font-serif text-bark dark:text-gray-100">{history.monthly.session_count || 0}</p>
+          <p class="text-lg font-serif text-bark dark:text-gray-100">{history.thisMonth.sessionCount || 0}</p>
         </div>
         <div class="p-3 bg-grove-50/50 dark:bg-gray-600/50 rounded-lg">
-          <p class="text-xs text-bark/60 dark:text-gray-400 font-sans">Max Players</p>
-          <p class="text-lg font-serif text-bark dark:text-gray-100">{history.monthly.max_players || 0}</p>
+          <p class="text-xs text-bark/60 dark:text-gray-400 font-sans">Total (All Time)</p>
+          <p class="text-lg font-serif text-bark dark:text-gray-100">{formatCost(history.totals?.allTime?.cost || 0)}</p>
         </div>
       </div>
     {/if}
@@ -678,11 +682,11 @@
           <tbody>
             {#each history.sessions as session}
               <tr class="border-b border-grove-100 dark:border-gray-700">
-                <td class="py-2 text-bark dark:text-gray-200 font-sans">{formatDate(session.started_at)}</td>
-                <td class="py-2 text-bark/70 dark:text-gray-300 font-sans">{formatDuration(session.duration_seconds)}</td>
+                <td class="py-2 text-bark dark:text-gray-200 font-sans">{formatDate(session.startedAt)}</td>
+                <td class="py-2 text-bark/70 dark:text-gray-300 font-sans">{session.durationFormatted || formatDuration(session.durationSeconds)}</td>
                 <td class="py-2 text-bark/70 dark:text-gray-300 font-sans">{session.region?.toUpperCase() || '-'}</td>
-                <td class="py-2 text-bark/70 dark:text-gray-300 font-sans">{session.max_players || 0}</td>
-                <td class="py-2 text-bark dark:text-gray-200 font-sans text-right">{formatCost(session.cost_usd)}</td>
+                <td class="py-2 text-bark/70 dark:text-gray-300 font-sans">{session.maxPlayers || 0}</td>
+                <td class="py-2 text-bark dark:text-gray-200 font-sans text-right">{formatCost(session.costUsd)}</td>
               </tr>
             {/each}
           </tbody>

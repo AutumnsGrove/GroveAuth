@@ -1,6 +1,12 @@
-# TODOs for GroveAuth
+# TODOs for Heartwood (GroveAuth)
 
-## Completed (2025-12-09)
+## Completed (2025-12-12)
+- [x] Rebrand to "Heartwood" public name (internal codename remains GroveAuth)
+- [x] Update all docs, frontend, and templates with Heartwood branding
+- [x] Add heartwood.grove.place custom domain to groveauth-frontend Pages project
+- [x] Deploy frontend with Heartwood branding
+
+## Completed (2025-12-10)
 - [x] Generate RSA keypair for JWT signing
 - [x] Create Google OAuth credentials
 - [x] Create GitHub OAuth app
@@ -22,8 +28,20 @@
 - [x] Cross-subdomain cookies working (domain=.grove.place)
 - [x] Full OAuth flow: grove.place → auth.grove.place → Google → back with tokens
 - [x] Fix admin.grove.place OAuth flow (direct OAuth + token exchange + session handling)
+- [x] Add dark/light mode toggle to admin dashboard
+- [x] Fix timezone display in Recent Activity (now shows local time)
+- [x] Replace Quicksand font with Lexend from GroveEngine
+- [x] Add DarkReader lock meta tag to disable DarkReader extension
+- [x] Fix subdomain detection on Cloudflare Pages (use x-forwarded-host header)
+
+## In Progress
+- [ ] Fix heartwood.grove.place routing (domain added to Pages, but traffic still going through wildcard router)
+  - May need to remove domain from router worker and re-add to Pages project
 
 ## Next Up
+- [ ] Fix admin.grove.place OAuth sign-in ("Service route not configured" error)
+  - The OAuth URL is using client_id='groveengine' with redirect_uri='https://admin.grove.place/callback'
+  - Need to verify this client/redirect_uri is registered in the backend
 - [ ] Add GitHub OAuth redirect URI for auth-api.grove.place
 - [ ] Test login.grove.place redirect behavior
 - [ ] Test full OAuth flow end-to-end for all providers
@@ -51,4 +69,4 @@
 
 ---
 
-*Last updated: 2025-12-09*
+*Last updated: 2025-12-12*

@@ -9,7 +9,7 @@ import { isUserAdmin } from '../db/queries.js';
 import { verifyAccessToken } from '../services/jwt.js';
 import { createDbSession } from '../db/session.js';
 
-const MC_CONTROL_URL = 'https://mc-control.grove.workers.dev';
+const MC_CONTROL_URL = 'https://mc-control.m7jv4v7npb.workers.dev';
 
 const minecraft = new Hono<{ Bindings: Env }>();
 

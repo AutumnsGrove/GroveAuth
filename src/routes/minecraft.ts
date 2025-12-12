@@ -9,7 +9,8 @@ import { isUserAdmin } from '../db/queries.js';
 import { verifyAccessToken } from '../services/jwt.js';
 import { createDbSession } from '../db/session.js';
 
-const MC_CONTROL_URL = 'https://mc-control.m7jv4v7npb.workers.dev';
+// Use custom domain to avoid Cloudflare error 1042 (worker-to-worker fetch restriction)
+const MC_CONTROL_URL = 'https://mc-control.grove.place';
 
 const minecraft = new Hono<{ Bindings: Env }>();
 
@@ -53,6 +54,8 @@ async function proxyToMcControl(
   const token = c.get('accessToken');
   const url = `${MC_CONTROL_URL}${path}`;
 
+  console.log(`[mc-proxy] ${method} ${url}`);
+
   try {
     const response = await fetch(url, {
       method,
@@ -63,13 +66,29 @@ async function proxyToMcControl(
       body: body ? JSON.stringify(body) : undefined,
     });
 
-    const data = await response.json();
+    console.log(`[mc-proxy] Response status: ${response.status}`);
+
+    const text = await response.text();
+    console.log(`[mc-proxy] Response body: ${text.substring(0, 500)}`);
+
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch {
+      console.error(`[mc-proxy] Failed to parse JSON response`);
+      return c.json({
+        error: 'proxy_error',
+        error_description: `mc-control returned non-JSON: ${text.substring(0, 200)}`,
+      }, 502);
+    }
+
     return c.json(data, response.status);
   } catch (error) {
-    console.error('mc-control proxy error:', error);
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    console.error(`[mc-proxy] Fetch error: ${errorMsg}`);
     return c.json({
       error: 'proxy_error',
-      error_description: 'Failed to communicate with Minecraft control service',
+      error_description: `Failed to communicate with Minecraft control service: ${errorMsg}`,
     }, 502);
   }
 }

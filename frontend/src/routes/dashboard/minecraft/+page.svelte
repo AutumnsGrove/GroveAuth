@@ -97,12 +97,24 @@
     }
   }
 
+  // Detailed state description
+  function getStateDescription(state: string): string {
+    switch (state) {
+      case 'RUNNING': return 'Server is online and ready';
+      case 'IDLE': return 'No players, will suspend soon';
+      case 'PROVISIONING': return 'VPS starting, downloading mods & world...';
+      case 'SUSPENDED': return 'Paused to save costs';
+      case 'TERMINATING': return 'Saving world and shutting down...';
+      default: return 'Server is offline';
+    }
+  }
+
   // Calculate TTL countdown
   function calculateTTL(): string {
     if (!serverStatus || serverStatus.state === 'OFFLINE') return '--';
-    if (serverStatus.state === 'RUNNING' && serverStatus.players > 0) return 'Active';
+    if (serverStatus.state === 'RUNNING' && (serverStatus.players?.online ?? 0) > 0) return 'Active';
 
-    const idleSeconds = serverStatus.idle_seconds || 0;
+    const idleSeconds = serverStatus.idleTime || 0;
     const idleTimeout = 900; // 15 minutes
     const remaining = Math.max(0, idleTimeout - idleSeconds);
 
@@ -432,10 +444,11 @@
         <div class="w-3 h-3 rounded-full {getStateColor(serverStatus?.state || 'OFFLINE')}"></div>
       </div>
       <p class="text-2xl font-serif text-bark dark:text-gray-100 mb-1">{getStateLabel(serverStatus?.state || 'OFFLINE')}</p>
+      <p class="text-xs text-bark/50 dark:text-gray-500 font-sans">{getStateDescription(serverStatus?.state || 'OFFLINE')}</p>
       {#if serverStatus?.region}
-        <p class="text-xs text-bark/50 dark:text-gray-500 font-sans">Region: {serverStatus.region.toUpperCase()}</p>
+        <p class="text-xs text-bark/50 dark:text-gray-500 font-sans mt-1">Region: {serverStatus.region.toUpperCase()}</p>
       {/if}
-      {#if serverStatus?.vps_ip && isServerOnline}
+      {#if serverStatus?.serverIp && isServerOnline}
         <p class="text-xs text-bark/50 dark:text-gray-500 font-mono mt-1">mc.grove.place</p>
       {/if}
     </div>
@@ -444,14 +457,14 @@
     <div class="card p-6">
       <h3 class="text-sm font-sans text-bark/60 dark:text-gray-400 mb-3">Players Online</h3>
       <p class="text-3xl font-serif text-bark dark:text-gray-100">
-        {serverStatus?.players ?? 0}
-        <span class="text-lg text-bark/40 dark:text-gray-500">/ 20</span>
+        {serverStatus?.players?.online ?? 0}
+        <span class="text-lg text-bark/40 dark:text-gray-500">/ {serverStatus?.players?.max ?? 20}</span>
       </p>
-      {#if serverStatus?.player_list && serverStatus.player_list.length > 0}
+      {#if serverStatus?.players?.list && serverStatus.players.list.length > 0}
         <div class="mt-2 text-xs text-bark/60 dark:text-gray-400 font-sans">
-          {serverStatus.player_list.slice(0, 3).join(', ')}
-          {#if serverStatus.player_list.length > 3}
-            <span class="text-bark/40 dark:text-gray-500">+{serverStatus.player_list.length - 3} more</span>
+          {serverStatus.players.list.slice(0, 3).join(', ')}
+          {#if serverStatus.players.list.length > 3}
+            <span class="text-bark/40 dark:text-gray-500">+{serverStatus.players.list.length - 3} more</span>
           {/if}
         </div>
       {/if}
@@ -464,7 +477,7 @@
       <p class="text-xs text-bark/50 dark:text-gray-500 font-sans mt-1">
         {#if !isServerOnline}
           Server offline
-        {:else if serverStatus?.players > 0}
+        {:else if (serverStatus?.players?.online ?? 0) > 0}
           Players active
         {:else}
           Until idle timeout
@@ -494,7 +507,7 @@
     <div class="card p-6">
       <h3 class="text-sm font-sans text-bark/60 dark:text-gray-400 mb-3">World Size</h3>
       <p class="text-2xl font-serif text-bark dark:text-gray-100">
-        {formatBytes(serverStatus?.world_size_bytes)}
+        {formatBytes(serverStatus?.worldSizeBytes)}
       </p>
       <p class="text-xs text-bark/50 dark:text-gray-500 font-sans mt-1">R2 storage</p>
     </div>
@@ -564,11 +577,13 @@
           {#each whitelist as player}
             <div class="flex items-center justify-between p-2 bg-grove-50/50 dark:bg-gray-600/50 rounded-lg">
               <div>
-                <p class="font-sans text-bark dark:text-gray-100">{player.username}</p>
-                <p class="text-xs text-bark/50 dark:text-gray-400 font-mono">{player.uuid?.slice(0, 8)}...</p>
+                <p class="font-sans text-bark dark:text-gray-100">{player.name}</p>
+                {#if player.uuid}
+                  <p class="text-xs text-bark/50 dark:text-gray-400 font-mono">{player.uuid.slice(0, 8)}...</p>
+                {/if}
               </div>
               <button
-                onclick={() => removeFromWhitelist(player.username)}
+                onclick={() => removeFromWhitelist(player.name)}
                 class="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 p-1"
                 title="Remove from whitelist"
               >

@@ -35,7 +35,7 @@
 </script>
 
 <svelte:head>
-  <title>Admin Dashboard - GroveAuth</title>
+  <title>Admin Dashboard - Heartwood</title>
 </svelte:head>
 
 <main class="min-h-screen p-6 md:p-8">
@@ -45,7 +45,7 @@
       <Logo size="sm" />
       <div>
         <h1 class="text-2xl font-serif text-bark dark:text-gray-100">Admin Dashboard</h1>
-        <p class="text-sm text-bark/60 dark:text-gray-400 font-sans">GroveAuth Management</p>
+        <p class="text-sm text-bark/60 dark:text-gray-400 font-sans">Heartwood Management</p>
       </div>
     </div>
     <div class="flex items-center gap-4">

@@ -5,7 +5,7 @@
 </script>
 
 <svelte:head>
-  <title>Error — GroveAuth</title>
+  <title>Error — Heartwood</title>
 </svelte:head>
 
 <main class="min-h-screen flex flex-col items-center justify-center px-6 py-12">
@@ -43,6 +43,6 @@
   </div>
 
   <p class="mt-8 text-sm text-bark/50 font-sans">
-    Powered by <a href="https://grove.place" class="hover:text-grove-600 transition-colors">GroveAuth</a>
+    Powered by <a href="https://heartwood.grove.place" class="hover:text-grove-600 transition-colors">Heartwood</a>
   </p>
 </main>

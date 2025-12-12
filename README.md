@@ -1,14 +1,18 @@
-# GroveAuth
+# Heartwood
 
 > Centralized authentication service for AutumnsGrove properties
 
-**Domain**: `auth.grove.place`
+**Public Name**: Heartwood
+**Internal Codename**: GroveAuth
+**Domain**: `heartwood.grove.place`
+
+*The heartwood is the dense, authentic core of a tree — just as Heartwood is the secure core of the Grove ecosystem.*
 
 ---
 
 ## Overview
 
-GroveAuth is a Cloudflare Worker-based authentication service that handles all authentication for AutumnsGrove sites. Instead of each site implementing its own auth logic, all sites redirect to GroveAuth for login and receive verified session tokens back.
+Heartwood is a Cloudflare Worker-based authentication service that handles all authentication for AutumnsGrove sites. Instead of each site implementing its own auth logic, all sites redirect to Heartwood for login and receive verified session tokens back.
 
 ### Features
 
@@ -45,7 +49,7 @@ GroveAuth is a Cloudflare Worker-based authentication service that handles all a
 ```bash
 # Clone the repository
 git clone https://github.com/AutumnsGrove/GroveAuth.git
-cd GroveAuth
+cd GroveAuth  # Internal codename used for repository
 
 # Install dependencies
 pnpm install
@@ -107,10 +111,10 @@ pnpm deploy
 
 ## Client Integration
 
-Sites authenticate with GroveAuth using the OAuth 2.0 Authorization Code flow:
+Sites authenticate with Heartwood using the OAuth 2.0 Authorization Code flow:
 
 ```typescript
-// 1. Redirect user to GroveAuth
+// 1. Redirect user to Heartwood
 const params = new URLSearchParams({
   client_id: 'your-client-id',
   redirect_uri: 'https://yoursite.com/auth/callback',
@@ -118,10 +122,10 @@ const params = new URLSearchParams({
   code_challenge: await generateCodeChallenge(verifier),
   code_challenge_method: 'S256'
 });
-redirect(`https://auth.grove.place/login?${params}`);
+redirect(`https://heartwood.grove.place/login?${params}`);
 
 // 2. Handle callback - exchange code for tokens
-const tokens = await fetch('https://auth.grove.place/token', {
+const tokens = await fetch('https://heartwood.grove.place/token', {
   method: 'POST',
   body: new URLSearchParams({
     grant_type: 'authorization_code',
@@ -134,7 +138,7 @@ const tokens = await fetch('https://auth.grove.place/token', {
 }).then(r => r.json());
 
 // 3. Verify tokens on protected routes
-const user = await fetch('https://auth.grove.place/verify', {
+const user = await fetch('https://heartwood.grove.place/verify', {
   headers: { Authorization: `Bearer ${tokens.access_token}` }
 }).then(r => r.json());
 ```
@@ -145,7 +149,7 @@ const user = await fetch('https://auth.grove.place/verify', {
 
 | Client ID | Site | Redirect URIs |
 |-----------|------|---------------|
-| `groveengine` | GroveEngine | `https://*.grove.place/auth/callback` |
+| `groveengine` | Lattice (GroveEngine) | `https://*.grove.place/auth/callback` |
 | `autumnsgrove` | AutumnsGrove | `https://autumnsgrove.place/auth/callback` |
 
 ---
@@ -223,4 +227,4 @@ MIT - AutumnsGrove
 
 ---
 
-*See [GROVEAUTH_SPEC.md](GROVEAUTH_SPEC.md) for complete technical specification*
+*See [GROVEAUTH_SPEC.md](GROVEAUTH_SPEC.md) for complete technical specification (internal codename used for file)*

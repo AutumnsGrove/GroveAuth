@@ -1,9 +1,11 @@
-# GroveAuth - Centralized Authentication Service
+# Heartwood (GroveAuth) - Centralized Authentication Service
 
 > A Cloudflare Worker-based authentication service for all AutumnsGrove properties
 
-**Domain**: `auth.grove.place`
-**Project Name**: GroveAuth
+**Public Name**: Heartwood
+**Internal Codename**: GroveAuth
+**Public Domain**: `heartwood.grove.place`
+**API Domain**: `auth-api.grove.place` (internal backend)
 
 ---
 

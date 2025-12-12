@@ -1,12 +1,25 @@
-# Project Instructions - GroveAuth
+# Project Instructions - Heartwood (GroveAuth)
 
 > **Note**: This is the main orchestrator file. For detailed guides, see `AgentUsage/README.md`
 
 ---
 
+## Naming
+
+| | |
+|---|---|
+| **Public Name** | Heartwood |
+| **Internal Codename** | GroveAuth |
+| **Domain** | heartwood.grove.place |
+| **Description** | The heartwood is the dense, authentic core of a tree — just as Heartwood is the secure authentication core of the Grove ecosystem. |
+
+> "All our sites use Heartwood for login"
+
+---
+
 ## Project Purpose
 
-GroveAuth is a centralized authentication service for all AutumnsGrove properties. It handles OAuth (Google, GitHub) and Magic Code (email) authentication, issuing JWT tokens that client sites can verify. Runs on Cloudflare Workers with D1 database.
+Heartwood (internally: GroveAuth) is a centralized authentication service for all AutumnsGrove properties. It handles OAuth (Google, GitHub) and Magic Code (email) authentication, issuing JWT tokens that client sites can verify. Runs on Cloudflare Workers with D1 database.
 
 ## Tech Stack
 

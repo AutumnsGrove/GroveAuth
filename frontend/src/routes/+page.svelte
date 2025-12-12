@@ -26,11 +26,11 @@
 
 <svelte:head>
   {#if isAdmin}
-    <title>Admin Dashboard - GroveAuth</title>
+    <title>Admin Dashboard - Heartwood</title>
   {:else}
-    <title>GroveAuth — Secure Authentication</title>
+    <title>Heartwood — Secure Authentication</title>
   {/if}
-  <meta name="description" content="Centralized authentication service for AutumnsGrove properties. Secure login with Google, GitHub, or email magic codes." />
+  <meta name="description" content="Heartwood is the centralized authentication service for AutumnsGrove properties. Secure login with Google, GitHub, or email magic codes." />
 </svelte:head>
 
 {#if isAdmin && needsLogin}
@@ -70,8 +70,8 @@
 
     <footer class="mt-16 text-center">
       <div class="flex items-center justify-center gap-4 text-sm font-sans text-bark/50 dark:text-gray-500">
-        <a href="https://auth.grove.place" class="hover:text-grove-600 dark:hover:text-grove-400 transition-colors">
-          GroveAuth Home
+        <a href="https://heartwood.grove.place" class="hover:text-grove-600 dark:hover:text-grove-400 transition-colors">
+          Heartwood Home
         </a>
       </div>
     </footer>
@@ -91,7 +91,7 @@
       <p class="text-bark/60 dark:text-gray-400 font-sans text-sm">{errorDescription}</p>
 
       <a
-        href="https://auth.grove.place"
+        href="https://heartwood.grove.place"
         class="inline-block mt-6 px-6 py-2 border border-grove-400 text-bark dark:text-gray-200 font-sans rounded-lg hover:bg-grove-50 dark:hover:bg-gray-700 transition-colors"
       >
         Back to Home
@@ -108,11 +108,11 @@
     </div>
 
     <!-- Title -->
-    <h1 class="text-4xl md:text-5xl font-serif text-bark dark:text-gray-100 mb-3 text-center">GroveAuth</h1>
+    <h1 class="text-4xl md:text-5xl font-serif text-bark dark:text-gray-100 mb-3 text-center">Heartwood</h1>
 
   <!-- Tagline -->
   <p class="text-xl md:text-2xl text-bark/70 dark:text-gray-400 font-serif italic mb-8 text-center">
-    Secure authentication for the Grove ecosystem
+    The authentic core of Grove authentication
   </p>
 
   <!-- Decorative divider -->
@@ -127,7 +127,7 @@
   <!-- Description -->
   <div class="max-w-xl text-center mb-12 space-y-4">
     <p class="text-bark/70 dark:text-gray-300 font-sans leading-relaxed">
-      GroveAuth provides secure, centralized authentication for all AutumnsGrove properties.
+      Heartwood provides secure, centralized authentication for all AutumnsGrove properties.
       Sign in once and access the entire ecosystem with a single identity.
     </p>
     <p class="text-bark/60 dark:text-gray-400 font-sans text-sm">

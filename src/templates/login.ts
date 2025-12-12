@@ -1,6 +1,6 @@
 /**
- * Login Page Template
- * Styled to match GroveEngine aesthetic
+ * Heartwood Login Page Template
+ * Styled to match Grove ecosystem aesthetic
  */
 
 import type { LoginParams } from '../types.js';
@@ -35,7 +35,7 @@ export function getLoginPageHTML(options: LoginPageOptions): string {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Sign In - GroveAuth</title>
+  <title>Sign In - Heartwood</title>
   <style>
     :root {
       --color-bg: #fafaf9;
@@ -319,7 +319,7 @@ export function getLoginPageHTML(options: LoginPageOptions): string {
             <path d="M2 17l10 5 10-5"/>
             <path d="M2 12l10 5 10-5"/>
           </svg>
-          GroveAuth
+          Heartwood
         </h1>
       </div>
 
@@ -395,7 +395,7 @@ export function getLoginPageHTML(options: LoginPageOptions): string {
       ` : ''}
 
       <p class="footer">
-        Powered by <a href="https://grove.place" target="_blank">GroveAuth</a>
+        Powered by <a href="https://heartwood.grove.place" target="_blank">Heartwood</a>
       </p>
     </div>
   </div>

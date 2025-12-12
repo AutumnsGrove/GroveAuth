@@ -1,13 +1,16 @@
-# Setting Up a New OAuth Client for GroveAuth
+# Setting Up a New OAuth Client for Heartwood
 
-This guide walks through registering a new website/application as an OAuth client with GroveAuth.
+This guide walks through registering a new website/application as an OAuth client with Heartwood.
+
+**Public Name**: Heartwood
+**Internal Codename**: GroveAuth
 
 ## Important URLs
 
 | Service | URL | Purpose |
 |---------|-----|---------|
 | **API** (Worker) | `https://auth-api.grove.place` | Token exchange, verification, refresh |
-| **Frontend** (Pages) | `https://auth.grove.place` | Login UI, OAuth redirects |
+| **Frontend** (Pages) | `https://heartwood.grove.place` | Login UI, OAuth redirects |
 
 **Your client code should call `auth-api.grove.place`** for all API operations (token exchange, verify, refresh, logout).
 
@@ -55,7 +58,7 @@ echo "https://yoursite.com/auth/callback" | wrangler secret put GROVEAUTH_REDIRE
 
 ## Step 3: Generate the Secret Hash (Base64URL Format)
 
-**CRITICAL**: GroveAuth uses **base64url encoding** (with `-` and `_`, no padding), NOT standard base64 or hex!
+**CRITICAL**: Heartwood uses **base64url encoding** (with `-` and `_`, no padding), NOT standard base64 or hex!
 
 Generate the SHA-256 hash in the correct format:
 
@@ -80,9 +83,9 @@ echo "Hash for database: $CLIENT_SECRET_HASH"
 | base64 (wrong) | `Sdgtaokie8+H7GKw+tn0S/6XNSh1rdv/lP8wCfe7/6E=` | ❌ NO |
 | hex (wrong) | `49d82d6a89227bcf87ec62b0fad9f44b...` | ❌ NO |
 
-## Step 4: Register the Client in GroveAuth
+## Step 4: Register the Client in Heartwood
 
-Insert the client into the GroveAuth database:
+Insert the client into the Heartwood database:
 
 ```bash
 wrangler d1 execute groveauth --remote --command="
@@ -103,8 +106,8 @@ ON CONFLICT(client_id) DO UPDATE SET
 ```
 
 **Important fields:**
-- `redirect_uris`: Where GroveAuth can redirect after login (include localhost for dev)
-- `allowed_origins`: CORS origins that can make requests to GroveAuth
+- `redirect_uris`: Where Heartwood can redirect after login (include localhost for dev)
+- `allowed_origins`: CORS origins that can make requests to Heartwood
 - `client_secret_hash`: Must be **base64url encoded** (dashes, underscores, no padding)
 
 ## Step 5: Update wrangler.toml (Optional)
@@ -112,7 +115,7 @@ ON CONFLICT(client_id) DO UPDATE SET
 Add documentation comments to your site's `wrangler.toml`:
 
 ```toml
-# GroveAuth Secrets (configured via wrangler pages secret):
+# Heartwood Secrets (configured via wrangler pages secret):
 # - GROVEAUTH_CLIENT_ID (OAuth client ID)
 # - GROVEAUTH_CLIENT_SECRET (OAuth client secret - plaintext)
 # - GROVEAUTH_REDIRECT_URI (OAuth callback URL)
@@ -124,7 +127,7 @@ Add documentation comments to your site's `wrangler.toml`:
 
 2. Test the login flow:
    - Navigate to `https://yoursite.com/admin` (or protected route)
-   - Should redirect to `https://auth.grove.place/login`
+   - Should redirect to `https://heartwood.grove.place/login`
    - Choose Google, GitHub, or Magic Code authentication
    - After authentication, should redirect back to `/auth/callback`
    - Should create session and redirect to your app
@@ -135,7 +138,7 @@ For convenience, here's a complete script to generate everything:
 
 ```bash
 #!/bin/bash
-# Generate GroveAuth client credentials
+# Generate Heartwood client credentials
 
 CLIENT_ID="your-client-id"
 PROJECT_NAME="your-pages-project"
@@ -148,7 +151,7 @@ CLIENT_SECRET=$(openssl rand -base64 32)
 CLIENT_SECRET_HASH=$(echo -n "$CLIENT_SECRET" | openssl dgst -sha256 -binary | base64 | tr '+/' '-_' | tr -d '=')
 
 echo "=================================="
-echo "GroveAuth Client Credentials"
+echo "Heartwood Client Credentials"
 echo "=================================="
 echo ""
 echo "Client ID:     $CLIENT_ID"
@@ -165,7 +168,7 @@ echo "echo \"$CLIENT_ID\" | wrangler pages secret put GROVEAUTH_CLIENT_ID --proj
 echo "echo \"$CLIENT_SECRET\" | wrangler pages secret put GROVEAUTH_CLIENT_SECRET --project $PROJECT_NAME"
 echo "echo \"$SITE_URL/auth/callback\" | wrangler pages secret put GROVEAUTH_REDIRECT_URI --project $PROJECT_NAME"
 echo ""
-echo "# 2. Register in GroveAuth (update the SQL with your details):"
+echo "# 2. Register in Heartwood (update the SQL with your details):"
 echo "wrangler d1 execute groveauth --remote --command=\"INSERT INTO clients ...\""
 ```
 

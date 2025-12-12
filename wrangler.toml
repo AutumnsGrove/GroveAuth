@@ -1,5 +1,7 @@
-# GroveAuth - Centralized Authentication Service
-# Domain: auth.grove.place
+# Heartwood - Centralized Authentication Service
+# Public Name: Heartwood | Internal Codename: GroveAuth
+# Public Domain: heartwood.grove.place
+# API Domain: auth-api.grove.place (internal backend)
 
 name = "groveauth"
 main = "src/index.ts"

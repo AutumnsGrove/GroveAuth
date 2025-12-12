@@ -1,6 +1,7 @@
 /**
- * GroveAuth Frontend Configuration
- * API URL points to the Cloudflare Worker backend
+ * Heartwood Frontend Configuration
+ * API URL points to the internal Cloudflare Worker backend (groveauth worker)
+ * Note: auth-api.grove.place is the internal API endpoint, not the public domain
  */
 
 export const AUTH_API_URL = 'https://auth-api.grove.place';

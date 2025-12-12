@@ -116,14 +116,14 @@
 </script>
 
 <svelte:head>
-  <title>Sign In — GroveAuth</title>
-  <meta name="description" content="Sign in to your AutumnsGrove account" />
+  <title>Sign In — Heartwood</title>
+  <meta name="description" content="Sign in to your AutumnsGrove account via Heartwood" />
 </svelte:head>
 
 <main class="min-h-screen flex flex-col items-center justify-center px-6 py-12">
   <!-- Logo -->
   <div class="mb-8">
-    <a href="/" class="text-grove-600 hover:text-grove-700 transition-colors" aria-label="GroveAuth Home">
+    <a href="/" class="text-grove-600 hover:text-grove-700 transition-colors" aria-label="Heartwood Home">
       <Logo size="md" />
     </a>
   </div>
@@ -293,6 +293,6 @@
 
   <!-- Footer -->
   <p class="mt-8 text-sm text-bark/50 dark:text-gray-500 font-sans">
-    Powered by <a href="https://grove.place" class="hover:text-grove-600 dark:hover:text-grove-400 transition-colors">GroveAuth</a>
+    Powered by <a href="https://heartwood.grove.place" class="hover:text-grove-600 dark:hover:text-grove-400 transition-colors">Heartwood</a>
   </p>
 </main>

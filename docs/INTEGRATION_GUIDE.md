@@ -1,14 +1,17 @@
-# GroveAuth Integration Guide
+# Heartwood Integration Guide
 
-> How to add GroveAuth authentication to your site
+> How to add Heartwood authentication to your site
 
 ---
 
 ## Overview
 
-GroveAuth is a centralized authentication service for AutumnsGrove properties. Instead of implementing auth yourself, redirect users to GroveAuth and receive verified JWT tokens back.
+Heartwood is a centralized authentication service for AutumnsGrove properties. Instead of implementing auth yourself, redirect users to Heartwood and receive verified JWT tokens back.
 
-**Auth URL**: `https://auth.grove.place`
+**Public Name**: Heartwood
+**Internal Codename**: GroveAuth
+**Login UI**: `https://heartwood.grove.place`
+**API Base**: `https://auth-api.grove.place` (internal backend)
 
 ---
 
@@ -16,7 +19,7 @@ GroveAuth is a centralized authentication service for AutumnsGrove properties. I
 
 ### 1. Get Your Client Credentials
 
-Contact the GroveAuth admin to register your site. You'll receive:
+Contact the Heartwood admin to register your site. You'll receive:
 - `client_id` - Public identifier for your app
 - `client_secret` - Secret key (keep this secure, server-side only)
 
@@ -26,7 +29,7 @@ Your redirect URIs must be pre-registered (e.g., `https://yoursite.com/auth/call
 
 ### 2. Add Login Button
 
-Redirect users to GroveAuth with required parameters:
+Redirect users to Heartwood with required parameters:
 
 ```typescript
 // Generate PKCE values (required for security)
@@ -69,7 +72,7 @@ async function login() {
     code_challenge_method: 'S256'
   });
 
-  window.location.href = `https://auth.grove.place/login?${params}`;
+  window.location.href = `https://heartwood.grove.place/login?${params}`;
 }
 ```
 
@@ -77,7 +80,7 @@ async function login() {
 
 ### 3. Handle the Callback
 
-After authentication, GroveAuth redirects back with an authorization code:
+After authentication, Heartwood redirects back with an authorization code:
 
 ```
 https://yoursite.com/auth/callback?code=abc123&state=xyz789
@@ -107,8 +110,8 @@ async function handleAuthCallback(request: Request, env: Env) {
   // Get code verifier from session
   const codeVerifier = getCookie(request, 'code_verifier');
 
-  // Exchange code for tokens
-  const tokenResponse = await fetch('https://auth.grove.place/token', {
+  // Exchange code for tokens (via internal API)
+  const tokenResponse = await fetch('https://auth-api.grove.place/token', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded',
@@ -149,7 +152,7 @@ async function getAuthenticatedUser(request: Request): Promise<User | null> {
 
   const token = authHeader.substring(7);
 
-  const response = await fetch('https://auth.grove.place/verify', {
+  const response = await fetch('https://auth-api.grove.place/verify', {
     headers: {
       Authorization: `Bearer ${token}`,
     },
@@ -177,7 +180,7 @@ Access tokens expire after 1 hour. Use the refresh token to get new ones:
 
 ```typescript
 async function refreshAccessToken(refreshToken: string, env: Env) {
-  const response = await fetch('https://auth.grove.place/token/refresh', {
+  const response = await fetch('https://auth-api.grove.place/token/refresh', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded',
@@ -206,7 +209,7 @@ async function refreshAccessToken(refreshToken: string, env: Env) {
 
 ```typescript
 async function logout(accessToken: string) {
-  await fetch('https://auth.grove.place/logout', {
+  await fetch('https://auth-api.grove.place/logout', {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${accessToken}`,
@@ -284,7 +287,7 @@ For SvelteKit apps, here's a complete integration pattern:
 ```typescript
 import { env } from '$env/dynamic/private';
 
-const AUTH_BASE_URL = 'https://auth.grove.place';
+const AUTH_BASE_URL = 'https://auth-api.grove.place';  // Internal API endpoint
 
 export interface AuthTokens {
   access_token: string;
@@ -454,4 +457,4 @@ GROVEAUTH_REDIRECT_URI=https://yoursite.com/auth/callback
 
 ---
 
-*For questions or to register a new client, contact the GroveAuth admin.*
+*For questions or to register a new client, contact the Heartwood admin.*

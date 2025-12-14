@@ -753,7 +753,7 @@ export async function isUserAdmin(db: D1DatabaseOrSession, userId: string): Prom
   return user.is_admin === 1 || isEmailAdmin(user.email);
 }
 
-export async function getAdminStats(db: D1DatabaseOrSession): Promise<AdminStats> {
+export async function getAdminStats(db: D1DatabaseOrSession, engineDb?: D1Database): Promise<AdminStats> {
   // Total users
   const totalUsersResult = await db.prepare(`SELECT COUNT(*) as count FROM users`).first<{ count: number }>();
 
@@ -775,6 +775,13 @@ export async function getAdminStats(db: D1DatabaseOrSession): Promise<AdminStats
   // Total clients
   const totalClientsResult = await db.prepare(`SELECT COUNT(*) as count FROM clients`).first<{ count: number }>();
 
+  // GroveEngine: Email signups count
+  let emailSignupsCount = 0;
+  if (engineDb) {
+    const emailSignupsResult = await engineDb.prepare(`SELECT COUNT(*) as count FROM email_signups`).first<{ count: number }>();
+    emailSignupsCount = emailSignupsResult?.count ?? 0;
+  }
+
   return {
     total_users: totalUsersResult?.count ?? 0,
     users_by_provider: Object.fromEntries(
@@ -785,6 +792,7 @@ export async function getAdminStats(db: D1DatabaseOrSession): Promise<AdminStats
     ),
     recent_logins: recentLogins.results ?? [],
     total_clients: totalClientsResult?.count ?? 0,
+    email_signups_count: emailSignupsCount,
   };
 }
 

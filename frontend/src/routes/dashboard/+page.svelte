@@ -113,6 +113,17 @@
     </div>
   </div>
 
+  <!-- GroveEngine Stats -->
+  <div class="mb-8">
+    <h3 class="text-sm font-sans text-bark/60 dark:text-gray-400 mb-3 uppercase tracking-wide">GroveEngine</h3>
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div class="card p-6">
+        <h3 class="text-sm font-sans text-bark/60 dark:text-gray-400 mb-1">Email Signups</h3>
+        <p class="text-3xl font-serif text-bark dark:text-gray-100">{stats.email_signups_count}</p>
+      </div>
+    </div>
+  </div>
+
   <!-- D1 Replication Status -->
   {#if stats.replication}
     <div class="card p-4 mb-8 flex items-center justify-between">

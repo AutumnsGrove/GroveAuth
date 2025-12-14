@@ -8,8 +8,11 @@ export type D1DatabaseOrSession = D1Database | ReturnType<D1Database['withSessio
 
 // Environment bindings for Cloudflare Workers
 export interface Env {
-  // D1 Database
+  // D1 Database (Heartwood auth data)
   DB: D1Database;
+
+  // D1 Database (GroveEngine data - email signups, etc.)
+  ENGINE_DB: D1Database;
 
   // Environment variables
   AUTH_BASE_URL: string;
@@ -338,6 +341,8 @@ export interface AdminStats {
   users_by_tier: Record<string, number>;
   recent_logins: AuditLog[];
   total_clients: number;
+  // GroveEngine stats
+  email_signups_count: number;
 }
 
 export const ADMIN_EMAILS = ['autumn@grove.place', 'autumnbrown23@pm.me'];

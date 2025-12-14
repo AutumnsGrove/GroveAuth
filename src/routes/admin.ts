@@ -48,7 +48,7 @@ admin.use('/*', async (c, next) => {
  */
 admin.get('/stats', async (c) => {
   const db = createDbSession(c.env);
-  const stats = await getAdminStats(db);
+  const stats = await getAdminStats(db, c.env.ENGINE_DB);
 
   // Get replication info from the last query
   const replicationInfo = {

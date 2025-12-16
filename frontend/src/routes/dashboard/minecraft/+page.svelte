@@ -3,6 +3,8 @@
   import { theme } from '$lib/theme';
   import { AUTH_API_URL } from '$lib/config';
   import { invalidateAll } from '$app/navigation';
+  import ModpackManager from './components/ModpackManager.svelte';
+  import WorldManager from './components/WorldManager.svelte';
 
   let { data } = $props();
 
@@ -640,6 +642,20 @@
         </p>
       {/if}
     </div>
+  </div>
+
+  <!-- Modpack & World Management -->
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+    <ModpackManager
+      accessToken={accessToken}
+      serverState={serverStatus?.state || 'OFFLINE'}
+      onRefresh={() => invalidateAll()}
+    />
+    <WorldManager
+      accessToken={accessToken}
+      serverState={serverStatus?.state || 'OFFLINE'}
+      onRefresh={() => invalidateAll()}
+    />
   </div>
 
   <!-- Session History -->

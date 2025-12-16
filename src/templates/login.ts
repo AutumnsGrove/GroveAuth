@@ -36,6 +36,9 @@ export function getLoginPageHTML(options: LoginPageOptions): string {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Sign In - Heartwood</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
     :root {
       --color-bg: #fafaf9;
@@ -75,7 +78,7 @@ export function getLoginPageHTML(options: LoginPageOptions): string {
     }
 
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      font-family: 'Lexend', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       background: var(--color-bg);
       color: var(--color-text);
       min-height: 100vh;

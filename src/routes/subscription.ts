@@ -140,7 +140,7 @@ subscription.post('/:userId/post-count', async (c) => {
 
 /**
  * PUT /subscription/:userId/tier - Update subscription tier
- * Body: { tier: 'starter' | 'professional' | 'business' }
+ * Body: { tier: 'seedling' | 'sapling' | 'evergreen' | 'canopy' | 'platform' }
  */
 subscription.put('/:userId/tier', async (c) => {
   const payload = await verifyBearerToken(c);
@@ -158,11 +158,11 @@ subscription.put('/:userId/tier', async (c) => {
     return c.json({ error: 'invalid_request', error_description: 'Invalid JSON body' }, 400);
   }
 
-  const validTiers: SubscriptionTier[] = ['starter', 'professional', 'business'];
+  const validTiers: SubscriptionTier[] = ['seedling', 'sapling', 'evergreen', 'canopy', 'platform'];
   if (!body.tier || !validTiers.includes(body.tier as SubscriptionTier)) {
     return c.json({
       error: 'invalid_request',
-      error_description: 'Body must contain { tier: "starter" | "professional" | "business" }'
+      error_description: 'Body must contain { tier: "seedling" | "sapling" | "evergreen" | "canopy" | "platform" }'
     }, 400);
   }
 

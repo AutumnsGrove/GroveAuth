@@ -255,7 +255,7 @@ export interface AuthError {
 // SUBSCRIPTION TYPES
 // =============================================================================
 
-export type SubscriptionTier = 'starter' | 'professional' | 'business';
+export type SubscriptionTier = 'seedling' | 'sapling' | 'evergreen' | 'canopy' | 'platform';
 
 export interface UserSubscription {
   id: string;
@@ -297,9 +297,11 @@ export type SubscriptionAuditEventType =
   | 'custom_domain_removed';
 
 export const TIER_POST_LIMITS: Record<SubscriptionTier, number | null> = {
-  starter: 250,
-  professional: 2000,
-  business: null,
+  seedling: 250,
+  sapling: 2000,
+  evergreen: 10000,
+  canopy: null,
+  platform: null,
 };
 
 export interface SubscriptionStatus {

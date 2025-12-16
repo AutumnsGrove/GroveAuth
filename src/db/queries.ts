@@ -498,7 +498,7 @@ export async function getUserSubscription(db: D1DatabaseOrSession, userId: strin
   return db.prepare('SELECT * FROM user_subscriptions WHERE user_id = ?').bind(userId).first<UserSubscription>();
 }
 
-export async function createUserSubscription(db: D1DatabaseOrSession, userId: string, tier: SubscriptionTier = 'starter'): Promise<UserSubscription> {
+export async function createUserSubscription(db: D1DatabaseOrSession, userId: string, tier: SubscriptionTier = 'seedling'): Promise<UserSubscription> {
   const id = generateUUID();
   const postLimit = TIER_POST_LIMITS[tier];
   const now = new Date().toISOString();
@@ -520,7 +520,7 @@ export async function createUserSubscription(db: D1DatabaseOrSession, userId: st
 export async function getOrCreateUserSubscription(db: D1DatabaseOrSession, userId: string): Promise<UserSubscription> {
   const existing = await getUserSubscription(db, userId);
   if (existing) return existing;
-  return createUserSubscription(db, userId, 'starter');
+  return createUserSubscription(db, userId, 'seedling');
 }
 
 export async function incrementPostCount(db: D1DatabaseOrSession, userId: string): Promise<UserSubscription | null> {
@@ -605,7 +605,7 @@ export async function updateSubscriptionTier(db: D1DatabaseOrSession, userId: st
   ).bind(newTier, newPostLimit, graceStart, now, userId).run();
 
   // Determine event type
-  const tierOrder = { starter: 0, professional: 1, business: 2 };
+  const tierOrder: Record<SubscriptionTier, number> = { seedling: 0, sapling: 1, evergreen: 2, canopy: 3, platform: 4 };
   const eventType: SubscriptionAuditEventType = tierOrder[newTier] > tierOrder[oldTier] ? 'tier_upgraded' : 'tier_downgraded';
 
   await createSubscriptionAuditLog(db, {

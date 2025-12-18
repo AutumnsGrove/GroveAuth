@@ -23,6 +23,17 @@ VALUES (
     '["https://autumnsgrove.com"]'
 );
 
+-- Amber client (Grove storage management - amber.grove.place)
+INSERT OR REPLACE INTO clients (id, name, client_id, client_secret_hash, redirect_uris, allowed_origins)
+VALUES (
+    'c3000000-0000-0000-0000-000000000003',
+    'Amber',
+    'amber',
+    'PLACEHOLDER_HASH_UPDATE_ME',
+    '["https://amber.grove.place/auth/callback"]',
+    '["https://amber.grove.place", "https://amber-api.grove.place"]'
+);
+
 -- Initial allowed admin email
 INSERT OR REPLACE INTO allowed_emails (email, added_by)
 VALUES ('autumnbrown23@pm.me', 'system_seed');

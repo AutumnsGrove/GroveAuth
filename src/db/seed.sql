@@ -29,7 +29,7 @@ VALUES (
     'c3000000-0000-0000-0000-000000000003',
     'Amber',
     'amber',
-    'PLACEHOLDER_HASH_UPDATE_ME',
+    'lO8UBoFJKFkyTKvyoBp-LAyAzrC5j2kg4lQmkxKq5Vc',
     '["https://amber.grove.place/auth/callback"]',
     '["https://amber.grove.place", "https://amber-api.grove.place"]'
 );

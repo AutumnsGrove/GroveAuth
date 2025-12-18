@@ -152,6 +152,17 @@ const user = await fetch('https://heartwood.grove.place/verify', {
 | `groveengine` | Lattice (GroveEngine) | `https://*.grove.place/auth/callback` |
 | `autumnsgrove` | AutumnsGrove | `https://autumnsgrove.place/auth/callback` |
 
+### Register a New Client
+
+Need to add a new site to Heartwood? See **[docs/OAUTH_CLIENT_SETUP.md](docs/OAUTH_CLIENT_SETUP.md)** for the complete walkthrough:
+
+- Generate client credentials (secret + hash)
+- Set secrets on your client site via `wrangler`
+- Register the client in the Heartwood database
+- Troubleshoot common issues (hash format, CORS, redirects)
+
+For AI agents integrating auth into projects, see **[docs/AGENT_INTEGRATION.md](docs/AGENT_INTEGRATION.md)**.
+
 ---
 
 ## Security

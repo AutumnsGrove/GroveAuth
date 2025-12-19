@@ -8,8 +8,8 @@ VALUES (
     'GroveEngine',
     'groveengine',
     'UUmHuEAZ07nnhhU91L1zWBdTPsZXR68JQgPW5N5aJZE',
-    '["https://grove.place/auth/callback", "https://admin.grove.place/auth/callback", "https://admin.grove.place/callback"]',
-    '["https://grove.place", "https://admin.grove.place"]'
+    '["https://grove.place/auth/callback", "https://admin.grove.place/auth/callback", "https://admin.grove.place/callback", "https://forage.grove.place/auth/callback", "https://domains.grove.place/auth/callback"]',
+    '["https://grove.place", "https://admin.grove.place", "https://forage.grove.place", "https://domains.grove.place"]'
 );
 
 -- AutumnsGrove client (main site - autumnsgrove.com)

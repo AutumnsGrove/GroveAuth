@@ -34,6 +34,17 @@ VALUES (
     '["https://amber.grove.place", "https://amber-api.grove.place"]'
 );
 
+-- Plant client (tenant onboarding - plant.grove.place)
+INSERT OR REPLACE INTO clients (id, name, client_id, client_secret_hash, redirect_uris, allowed_origins)
+VALUES (
+    'c4000000-0000-0000-0000-000000000004',
+    'Plant',
+    'grove-plant',
+    'sSqlPr1D6qdmpz2WkCz0tDmw8+60SaE0zDCuWvAdpFI=',
+    '["https://plant.grove.place/auth/callback"]',
+    '["https://plant.grove.place"]'
+);
+
 -- Initial allowed admin email
 INSERT OR REPLACE INTO allowed_emails (email, added_by)
 VALUES ('autumnbrown23@pm.me', 'system_seed');

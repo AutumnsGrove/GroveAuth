@@ -1,5 +1,6 @@
 <script lang="ts">
   import Logo from '$lib/components/Logo.svelte';
+  import { XCircle } from 'lucide-svelte';
 
   let { data } = $props();
 </script>
@@ -16,10 +17,8 @@
   </div>
 
   <div class="card-elevated w-full max-w-sm p-8 text-center">
-    <div class="w-16 h-16 mx-auto mb-4 text-red-500">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-full h-full">
-        <path stroke-linecap="round" stroke-linejoin="round" d="M9.75 9.75l4.5 4.5m0-4.5l-4.5 4.5M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-      </svg>
+    <div class="w-16 h-16 mx-auto mb-4 text-red-500 flex items-center justify-center">
+      <XCircle size={64} strokeWidth={2} />
     </div>
 
     <h1 class="text-2xl font-serif text-bark mb-2">Something went wrong</h1>

@@ -1,5 +1,6 @@
 <script lang="ts">
   import { AUTH_API_URL } from '$lib/config';
+  import { RotateCw, X } from 'lucide-svelte';
 
   interface ModInfo {
     filename: string;
@@ -226,21 +227,12 @@
         class="p-1.5 rounded-lg hover:bg-grove-100 dark:hover:bg-gray-600 transition-colors disabled:opacity-50"
         title="Refresh"
       >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          class="w-4 h-4 text-bark/60 dark:text-gray-400"
+        <RotateCw
+          size={16}
+          strokeWidth={2}
+          class="text-bark/60 dark:text-gray-400"
           class:animate-spin={isLoading}
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-        >
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-          />
-        </svg>
+        />
       </button>
     </div>
   </div>
@@ -336,9 +328,7 @@
             class="ml-2 p-1 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 disabled:opacity-30"
             title="Delete mod"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-            </svg>
+            <X size={16} strokeWidth={2} />
           </button>
         </div>
       {/each}

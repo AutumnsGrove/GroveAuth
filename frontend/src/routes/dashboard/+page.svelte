@@ -1,6 +1,7 @@
 <script lang="ts">
   import Logo from '$lib/components/Logo.svelte';
   import { theme } from '$lib/theme';
+  import { Sun, Moon, Server } from 'lucide-svelte';
 
   let { data } = $props();
 
@@ -58,13 +59,9 @@
         aria-label="Toggle theme"
       >
         {#if isDark}
-          <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-yellow-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-          </svg>
+          <Sun size={20} class="text-yellow-400" />
         {:else}
-          <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
-          </svg>
+          <Moon size={20} class="text-gray-700" />
         {/if}
       </button>
     </div>
@@ -220,9 +217,7 @@
       <a href="/dashboard/minecraft" class="card p-4 hover:border-grove-400 dark:hover:border-grove-600 transition-colors group">
         <div class="flex items-center gap-3">
           <div class="w-10 h-10 rounded-lg bg-grove-100 dark:bg-gray-600 flex items-center justify-center group-hover:bg-grove-200 dark:group-hover:bg-gray-500 transition-colors">
-            <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-grove-600 dark:text-grove-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01" />
-            </svg>
+            <Server size={20} strokeWidth={2} class="text-grove-600 dark:text-grove-400" />
           </div>
           <div>
             <p class="font-sans text-bark dark:text-gray-100 font-medium">Minecraft Server</p>

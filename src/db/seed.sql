@@ -41,8 +41,8 @@ VALUES (
     'Plant',
     'grove-plant',
     'sSqlPr1D6qdmpz2WkCz0tDmw8+60SaE0zDCuWvAdpFI=',
-    '["https://plant.grove.place/auth/callback"]',
-    '["https://plant.grove.place"]'
+    '["https://plant.grove.place/auth/callback", "https://grove-plant.pages.dev/auth/callback"]',
+    '["https://plant.grove.place", "https://grove-plant.pages.dev"]'
 );
 
 -- Initial allowed admin email

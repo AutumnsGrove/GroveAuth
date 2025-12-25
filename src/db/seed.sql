@@ -40,7 +40,7 @@ VALUES (
     'c4000000-0000-0000-0000-000000000004',
     'Plant',
     'grove-plant',
-    'sSqlPr1D6qdmpz2WkCz0tDmw8+60SaE0zDCuWvAdpFI=',
+    'sSqlPr1D6qdmpz2WkCz0tDmw8-60SaE0zDCuWvAdpFI',
     '["https://plant.grove.place/auth/callback", "https://grove-plant.pages.dev/auth/callback"]',
     '["https://plant.grove.place", "https://grove-plant.pages.dev"]'
 );

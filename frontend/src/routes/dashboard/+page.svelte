@@ -1,7 +1,7 @@
 <script lang="ts">
   import Logo from '$lib/components/Logo.svelte';
   import { theme } from '$lib/theme';
-  import { Sun, Moon, Server } from 'lucide-svelte';
+  import { Sun, Moon, Server, Smartphone } from 'lucide-svelte';
 
   let { data } = $props();
 
@@ -107,6 +107,31 @@
           <p class="text-bark/40 dark:text-gray-500 text-sm font-sans italic">No subscriptions yet</p>
         {/if}
       </div>
+    </div>
+  </div>
+
+  <!-- Quick Actions -->
+  <div class="mb-8">
+    <h3 class="text-sm font-sans text-bark/60 dark:text-gray-400 mb-3 uppercase tracking-wide">Quick Actions</h3>
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <a href="/dashboard/devices" class="card p-4 flex items-center gap-3 hover:bg-grove-50 dark:hover:bg-gray-700/50 transition-colors">
+        <div class="p-2 rounded-lg bg-grove-100 dark:bg-gray-700">
+          <Smartphone size={20} class="text-grove-600 dark:text-grove-400" />
+        </div>
+        <div>
+          <h4 class="font-serif text-bark dark:text-gray-100">Manage Devices</h4>
+          <p class="text-xs text-bark/60 dark:text-gray-400 font-sans">View active sessions</p>
+        </div>
+      </a>
+      <a href="/dashboard/minecraft" class="card p-4 flex items-center gap-3 hover:bg-grove-50 dark:hover:bg-gray-700/50 transition-colors">
+        <div class="p-2 rounded-lg bg-grove-100 dark:bg-gray-700">
+          <Server size={20} class="text-grove-600 dark:text-grove-400" />
+        </div>
+        <div>
+          <h4 class="font-serif text-bark dark:text-gray-100">Minecraft Server</h4>
+          <p class="text-xs text-bark/60 dark:text-gray-400 font-sans">Manage server</p>
+        </div>
+      </a>
     </div>
   </div>
 

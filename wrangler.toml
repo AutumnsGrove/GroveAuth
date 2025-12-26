@@ -30,6 +30,16 @@ database_id = "a6394da2-b7a6-48ce-b7fe-b1eb3e730e68"
 pattern = "auth-api.grove.place"
 custom_domain = true
 
+# Durable Objects - SessionDO for per-user session management
+[[durable_objects.bindings]]
+name = "SESSIONS"
+class_name = "SessionDO"
+
+# Migration for SQLite-backed Durable Object
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["SessionDO"]
+
 # Secrets (set via `wrangler secret put <NAME>`):
 # - JWT_PRIVATE_KEY: RSA private key for signing JWTs (PEM format)
 # - JWT_PUBLIC_KEY: RSA public key for verifying JWTs (PEM format)
@@ -38,3 +48,4 @@ custom_domain = true
 # - GITHUB_CLIENT_ID: GitHub OAuth client ID
 # - GITHUB_CLIENT_SECRET: GitHub OAuth client secret
 # - RESEND_API_KEY: Resend API key for sending emails
+# - SESSION_SECRET: Secret for signing session cookies (32+ bytes)

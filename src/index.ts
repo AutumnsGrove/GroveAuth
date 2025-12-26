@@ -121,7 +121,12 @@ app.get('/', (c) => {
         clients: 'GET /admin/clients',
       },
       session: {
-        check: 'GET /session/check',
+        validate: 'POST /session/validate',
+        revoke: 'POST /session/revoke',
+        revokeAll: 'POST /session/revoke-all',
+        list: 'GET /session/list',
+        revokeById: 'DELETE /session/:sessionId',
+        check: 'GET /session/check (legacy)',
       },
       minecraft: {
         status: 'GET /minecraft/status',
@@ -146,5 +151,8 @@ app.onError((err, c) => {
   console.error('Unhandled error:', err);
   return c.json({ error: 'server_error', message: 'An unexpected error occurred' }, 500);
 });
+
+// Export SessionDO for Cloudflare Workers runtime
+export { SessionDO } from './durables/SessionDO.js';
 
 export default app;

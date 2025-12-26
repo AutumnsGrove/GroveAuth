@@ -25,6 +25,11 @@ export const config = {
     adminUsers: '/admin/users',
     adminAuditLog: '/admin/audit-log',
     adminClients: '/admin/clients',
+    // Session management endpoints
+    sessionValidate: '/session/validate',
+    sessionRevoke: '/session/revoke',
+    sessionRevokeAll: '/session/revoke-all',
+    sessionList: '/session/list',
     // Minecraft endpoints
     minecraftStatus: '/minecraft/status',
     minecraftStart: '/minecraft/start',

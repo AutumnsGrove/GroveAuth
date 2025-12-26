@@ -1,5 +1,13 @@
 /**
- * Session Routes - Session management and redirect info
+ * Session Routes - SessionDO-based session management with D1/JWT fallback
+ *
+ * New endpoints:
+ * - POST /session/validate - Validate session, return user info
+ * - POST /session/revoke - Revoke current session (logout)
+ * - POST /session/revoke-all - Revoke all sessions (logout everywhere)
+ * - GET /session/list - List all active sessions
+ * - DELETE /session/:sessionId - Revoke specific session
+ * - GET /session/check - Legacy compatibility endpoint
  */
 
 import { Hono } from 'hono';
@@ -15,22 +23,275 @@ import {
 import { hashSecret } from '../utils/crypto.js';
 import { verifyAccessToken } from '../services/jwt.js';
 import { createDbSession } from '../db/session.js';
+import {
+  getSessionFromRequest,
+  clearSessionCookieHeader,
+} from '../lib/session.js';
+import type { SessionDO } from '../durables/SessionDO.js';
 
 const session = new Hono<{ Bindings: Env }>();
 
 /**
- * GET /session/check - Check if user has valid session and get redirect info
- * Used by frontend to determine redirect behavior for login.grove.place and admin.grove.place
- *
- * Supports two authentication methods:
- * 1. Session token in cookie (legacy)
- * 2. Access token in cookie (cross-subdomain auth from grove.place)
+ * POST /session/validate
+ * Validate session and return user info
+ * Supports: grove_session cookie (SessionDO) -> access_token cookie (JWT) -> session cookie (D1)
+ */
+session.post('/validate', async (c) => {
+  const db = createDbSession(c.env);
+
+  // Try SessionDO first (new system)
+  const parsedSession = await getSessionFromRequest(c.req.raw, c.env.SESSION_SECRET);
+
+  if (parsedSession) {
+    const sessionDO = c.env.SESSIONS.get(
+      c.env.SESSIONS.idFromName(`session:${parsedSession.userId}`)
+    ) as DurableObjectStub<SessionDO>;
+
+    const result = await sessionDO.validateSession(parsedSession.sessionId);
+
+    if (result.valid) {
+      const user = await getUserById(db, parsedSession.userId);
+
+      if (user) {
+        const isAdmin = user.is_admin === 1 || isEmailAdmin(user.email);
+
+        return c.json({
+          valid: true,
+          user: {
+            id: user.id,
+            email: user.email,
+            name: user.name,
+            avatarUrl: user.avatar_url,
+            isAdmin,
+          },
+          session: {
+            id: parsedSession.sessionId,
+            deviceName: result.session?.deviceName,
+            lastActiveAt: result.session?.lastActiveAt,
+          },
+        });
+      }
+    }
+  }
+
+  // Fallback to JWT access_token cookie
+  const cookieHeader = c.req.header('Cookie') || '';
+  const accessTokenMatch = cookieHeader.match(/access_token=([^;]+)/);
+
+  if (accessTokenMatch) {
+    try {
+      const payload = await verifyAccessToken(c.env, accessTokenMatch[1]);
+
+      if (payload?.email) {
+        const user = await getUserByEmail(db, payload.email);
+
+        if (user) {
+          const isAdmin = user.is_admin === 1 || isEmailAdmin(user.email);
+
+          return c.json({
+            valid: true,
+            user: {
+              id: user.id,
+              email: user.email,
+              name: user.name,
+              avatarUrl: user.avatar_url,
+              isAdmin,
+            },
+            session: null, // No DO session for JWT auth
+          });
+        }
+      }
+    } catch {
+      // JWT invalid, fall through
+    }
+  }
+
+  // Fallback to legacy D1 session cookie
+  const sessionMatch = cookieHeader.match(/session=([^;]+)/);
+  if (sessionMatch) {
+    const sessionToken = sessionMatch[1];
+    const sessionHash = await hashSecret(sessionToken);
+    const sessionData = await getSessionByTokenHash(db, sessionHash);
+
+    if (sessionData) {
+      const user = await getUserById(db, sessionData.user_id);
+      if (user) {
+        const isAdmin = user.is_admin === 1 || isEmailAdmin(user.email);
+
+        return c.json({
+          valid: true,
+          user: {
+            id: user.id,
+            email: user.email,
+            name: user.name,
+            avatarUrl: user.avatar_url,
+            isAdmin,
+          },
+          session: null, // No DO session for legacy auth
+        });
+      }
+    }
+  }
+
+  return c.json({ valid: false });
+});
+
+/**
+ * POST /session/revoke
+ * Revoke current session (logout)
+ */
+session.post('/revoke', async (c) => {
+  const parsedSession = await getSessionFromRequest(c.req.raw, c.env.SESSION_SECRET);
+
+  if (!parsedSession) {
+    return c.json({ success: false, error: 'No session' }, 401);
+  }
+
+  const sessionDO = c.env.SESSIONS.get(
+    c.env.SESSIONS.idFromName(`session:${parsedSession.userId}`)
+  ) as DurableObjectStub<SessionDO>;
+
+  await sessionDO.revokeSession(parsedSession.sessionId);
+
+  // Clear all session-related cookies
+  const clearCookies = [
+    clearSessionCookieHeader(),
+    'access_token=; Path=/; HttpOnly; Secure; SameSite=Lax; Domain=.grove.place; Max-Age=0',
+    'refresh_token=; Path=/; HttpOnly; Secure; SameSite=Lax; Domain=.grove.place; Max-Age=0',
+  ];
+
+  return new Response(JSON.stringify({ success: true }), {
+    status: 200,
+    headers: {
+      'Content-Type': 'application/json',
+      'Set-Cookie': clearCookies.join(', '),
+    },
+  });
+});
+
+/**
+ * POST /session/revoke-all
+ * Revoke all sessions (logout from all devices)
+ */
+session.post('/revoke-all', async (c) => {
+  const parsedSession = await getSessionFromRequest(c.req.raw, c.env.SESSION_SECRET);
+
+  if (!parsedSession) {
+    return c.json({ success: false, error: 'No session' }, 401);
+  }
+
+  let keepCurrent = false;
+  try {
+    const body = await c.req.json<{ keepCurrent?: boolean }>();
+    keepCurrent = body.keepCurrent ?? false;
+  } catch {
+    // No body, revoke all
+  }
+
+  const sessionDO = c.env.SESSIONS.get(
+    c.env.SESSIONS.idFromName(`session:${parsedSession.userId}`)
+  ) as DurableObjectStub<SessionDO>;
+
+  const count = await sessionDO.revokeAllSessions(
+    keepCurrent ? parsedSession.sessionId : undefined
+  );
+
+  return c.json({ success: true, revokedCount: count });
+});
+
+/**
+ * GET /session/list
+ * List all active sessions for current user
+ */
+session.get('/list', async (c) => {
+  const parsedSession = await getSessionFromRequest(c.req.raw, c.env.SESSION_SECRET);
+
+  if (!parsedSession) {
+    return c.json({ sessions: [] }, 401);
+  }
+
+  const sessionDO = c.env.SESSIONS.get(
+    c.env.SESSIONS.idFromName(`session:${parsedSession.userId}`)
+  ) as DurableObjectStub<SessionDO>;
+
+  const sessions = await sessionDO.listSessions();
+
+  const sessionsWithCurrent = sessions.map((s) => ({
+    ...s,
+    isCurrent: s.id === parsedSession.sessionId,
+  }));
+
+  return c.json({ sessions: sessionsWithCurrent });
+});
+
+/**
+ * DELETE /session/:sessionId
+ * Revoke a specific session by ID (must be own session)
+ */
+session.delete('/:sessionId', async (c) => {
+  const parsedSession = await getSessionFromRequest(c.req.raw, c.env.SESSION_SECRET);
+
+  if (!parsedSession) {
+    return c.json({ success: false, error: 'No session' }, 401);
+  }
+
+  const sessionIdToRevoke = c.req.param('sessionId');
+
+  const sessionDO = c.env.SESSIONS.get(
+    c.env.SESSIONS.idFromName(`session:${parsedSession.userId}`)
+  ) as DurableObjectStub<SessionDO>;
+
+  const revoked = await sessionDO.revokeSession(sessionIdToRevoke);
+
+  if (!revoked) {
+    return c.json({ success: false, error: 'Session not found' }, 404);
+  }
+
+  return c.json({ success: true });
+});
+
+/**
+ * GET /session/check - Legacy compatibility endpoint
+ * Check if user has valid session and get redirect info
  */
 session.get('/check', async (c) => {
   const db = createDbSession(c.env);
+
+  // Try SessionDO first (new system)
+  const parsedSession = await getSessionFromRequest(c.req.raw, c.env.SESSION_SECRET);
+
+  if (parsedSession) {
+    const sessionDO = c.env.SESSIONS.get(
+      c.env.SESSIONS.idFromName(`session:${parsedSession.userId}`)
+    ) as DurableObjectStub<SessionDO>;
+
+    const result = await sessionDO.validateSession(parsedSession.sessionId);
+
+    if (result.valid) {
+      const user = await getUserById(db, parsedSession.userId);
+
+      if (user) {
+        const isAdmin = user.is_admin === 1 || isEmailAdmin(user.email);
+        const prefs = await getUserClientPreference(db, user.id);
+
+        return c.json({
+          authenticated: true,
+          user: {
+            id: user.id,
+            email: user.email,
+            name: user.name,
+            is_admin: isAdmin,
+          },
+          client: null,
+          last_used_client_id: prefs?.last_used_client_id || null,
+        });
+      }
+    }
+  }
+
   const cookieHeader = c.req.header('Cookie') || '';
 
-  // Try access_token first (cross-subdomain auth)
+  // Try access_token (cross-subdomain auth)
   const accessTokenMatch = cookieHeader.match(/access_token=([^;]+)/);
   if (accessTokenMatch) {
     try {
@@ -38,16 +299,11 @@ session.get('/check', async (c) => {
       const payload = await verifyAccessToken(c.env, accessToken);
 
       if (payload && payload.email) {
-        // Get user by email from token
         const user = await getUserByEmail(db, payload.email);
         if (user) {
           const isAdmin = user.is_admin === 1 || isEmailAdmin(user.email);
-
-          // Get client info if available
           const clientId = payload.client_id as string | undefined;
           const client = clientId ? await getClientByClientId(db, clientId) : null;
-
-          // Get user's client preference
           const prefs = await getUserClientPreference(db, user.id);
 
           return c.json({
@@ -89,19 +345,13 @@ session.get('/check', async (c) => {
     return c.json({ authenticated: false });
   }
 
-  // Get user info
   const user = await getUserById(db, sessionData.user_id);
   if (!user) {
     return c.json({ authenticated: false });
   }
 
-  // Get client info
   const client = await getClientByClientId(db, sessionData.client_id);
-
-  // Get user's client preference
   const prefs = await getUserClientPreference(db, sessionData.user_id);
-
-  // Check if user is admin
   const isAdmin = user.is_admin === 1 || isEmailAdmin(user.email);
 
   return c.json({

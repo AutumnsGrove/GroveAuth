@@ -14,6 +14,9 @@ export interface Env {
   // D1 Database (GroveEngine data - email signups, etc.)
   ENGINE_DB: D1Database;
 
+  // Durable Objects
+  SESSIONS: DurableObjectNamespace;
+
   // Environment variables
   AUTH_BASE_URL: string;
   ENVIRONMENT: string;
@@ -26,6 +29,7 @@ export interface Env {
   GITHUB_CLIENT_ID: string;
   GITHUB_CLIENT_SECRET: string;
   RESEND_API_KEY: string;
+  SESSION_SECRET: string;
 }
 
 // Database Models
@@ -321,6 +325,25 @@ export interface SubscriptionStatus {
 // SESSION & ADMIN TYPES
 // =============================================================================
 
+// SessionDO types (Durable Object-based sessions)
+export interface DOSession {
+  id: string;
+  deviceId: string;
+  deviceName: string;
+  createdAt: number;
+  lastActiveAt: number;
+  expiresAt: number;
+  ipAddress: string | null;
+  userAgent: string | null;
+}
+
+export interface ParsedSessionCookie {
+  sessionId: string;
+  userId: string;
+  signature: string;
+}
+
+// Legacy D1-based session (for backwards compatibility)
 export interface UserSession {
   id: string;
   user_id: string;

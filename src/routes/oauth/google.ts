@@ -19,6 +19,14 @@ import { getGoogleAuthUrl, exchangeGoogleCode, getGoogleUserInfo } from '../../s
 import { authenticateUser } from '../../services/user.js';
 import { getClientIP, getUserAgent } from '../../middleware/security.js';
 import { AUTH_CODE_EXPIRY } from '../../utils/constants.js';
+import {
+  getDeviceId,
+  parseDeviceName,
+  createSessionCookieHeader,
+  getClientIP as getSessionClientIP,
+  getUserAgent as getSessionUserAgent,
+} from '../../lib/session.js';
+import type { SessionDO } from '../../durables/SessionDO.js';
 
 const google = new Hono<{ Bindings: Env }>();
 
@@ -166,6 +174,31 @@ google.get('/callback', async (c) => {
     return c.redirect(errorRedirect);
   }
 
+  // Create session in SessionDO
+  const sessionDO = c.env.SESSIONS.get(
+    c.env.SESSIONS.idFromName(`session:${user.id}`)
+  ) as DurableObjectStub<SessionDO>;
+
+  const deviceId = await getDeviceId(c.req.raw, c.env.SESSION_SECRET);
+  const userAgent = getSessionUserAgent(c.req.raw);
+  const deviceName = parseDeviceName(userAgent);
+  const ipAddress = getSessionClientIP(c.req.raw);
+
+  const { sessionId } = await sessionDO.createSession({
+    deviceId,
+    deviceName,
+    ipAddress,
+    userAgent,
+    expiresInSeconds: 30 * 24 * 60 * 60, // 30 days
+  });
+
+  // Generate session cookie header
+  const sessionCookieHeader = await createSessionCookieHeader(
+    sessionId,
+    user.id,
+    c.env.SESSION_SECRET
+  );
+
   // Generate authorization code for the client
   const authCode = generateAuthCode();
   const expiresAt = new Date(Date.now() + AUTH_CODE_EXPIRY * 1000).toISOString();
@@ -180,9 +213,15 @@ google.get('/callback', async (c) => {
     expires_at: expiresAt,
   });
 
-  // Redirect back to client with auth code
+  // Redirect back to client with auth code and session cookie
   const successRedirect = buildSuccessRedirect(savedState.redirect_uri, authCode, savedState.state);
-  return c.redirect(successRedirect);
+  return new Response(null, {
+    status: 302,
+    headers: {
+      Location: successRedirect,
+      'Set-Cookie': sessionCookieHeader,
+    },
+  });
 });
 
 function buildSuccessRedirect(redirectUri: string, code: string, state: string): string {

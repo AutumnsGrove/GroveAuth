@@ -14,6 +14,63 @@ This guide walks through registering a new website/application as an OAuth clien
 
 **Your client code should call `auth-api.grove.place`** for all API operations (token exchange, verify, refresh, logout).
 
+## Session System Overview
+
+Heartwood uses **SessionDO** (Durable Object-based sessions) for fast, atomic session management:
+
+- **Cookie**: `grove_session={sessionId}:{userId}:{signature}` (HMAC-SHA256 signed)
+- **Domain**: `.grove.place` (works across all subdomains)
+- **Expiry**: 30 days
+- **Fallback**: JWT `access_token` cookie for backwards compatibility
+
+### Session Validation API
+
+Your client can validate sessions by calling:
+
+```typescript
+// POST /session/validate - Check if user is authenticated
+const response = await fetch('https://auth-api.grove.place/session/validate', {
+  method: 'POST',
+  headers: {
+    Cookie: request.headers.get('Cookie') || '',
+  },
+});
+
+const { valid, user, session } = await response.json();
+// user: { id, email, name, avatarUrl, isAdmin }
+// session: { id, deviceName, lastActiveAt } or null
+```
+
+### Session Management Endpoints
+
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/session/validate` | POST | Validate session, get user info |
+| `/session/revoke` | POST | Logout current device |
+| `/session/revoke-all` | POST | Logout from all devices |
+| `/session/list` | GET | List all active sessions |
+| `/session/:id` | DELETE | Revoke specific session |
+| `/session/check` | GET | Legacy compatibility |
+
+### Service Binding (Faster, Same Account)
+
+For projects in the same Cloudflare account, use a service binding:
+
+```toml
+# In your wrangler.toml
+[[services]]
+binding = "AUTH"
+service = "groveauth"
+```
+
+```typescript
+// Direct call - no external network hop
+const response = await env.AUTH.fetch('https://auth-api.grove.place/session/validate', {
+  method: 'POST',
+  headers: { Cookie: request.headers.get('Cookie') || '' },
+});
+```
+
 ## Prerequisites
 
 - `wrangler` CLI installed and logged in
@@ -212,4 +269,60 @@ Regenerate the hash using the exact command in Step 3.
 
 ---
 
-*Last updated: 2025-12-08*
+## Quick Agent Prompt (Copy & Paste)
+
+Use this prompt to quickly set up a new OAuth client with another Claude Code session:
+
+```
+I need to register a new OAuth client with Heartwood (GroveAuth).
+
+**Client Details:**
+- Client ID: [YOUR_CLIENT_ID]
+- Display Name: [YOUR_APP_NAME]
+- Project Name: [YOUR_CLOUDFLARE_PAGES_PROJECT]
+- Site URL: https://[YOUR_DOMAIN]
+- Callback URL: https://[YOUR_DOMAIN]/auth/callback
+
+**What I need you to do:**
+
+1. Generate a client secret: `openssl rand -base64 32`
+
+2. Generate the base64url hash: `echo -n "SECRET" | openssl dgst -sha256 -binary | base64 | tr '+/' '-_' | tr -d '='`
+
+3. Set secrets on the client site (Pages project):
+   ```bash
+   echo "CLIENT_ID" | wrangler pages secret put GROVEAUTH_CLIENT_ID --project PROJECT_NAME
+   echo "CLIENT_SECRET" | wrangler pages secret put GROVEAUTH_CLIENT_SECRET --project PROJECT_NAME
+   echo "https://DOMAIN/auth/callback" | wrangler pages secret put GROVEAUTH_REDIRECT_URI --project PROJECT_NAME
+   ```
+
+4. Register in Heartwood database:
+   ```bash
+   wrangler d1 execute groveauth --remote --command="
+   INSERT INTO clients (id, name, client_id, client_secret_hash, redirect_uris, allowed_origins, domain)
+   VALUES (
+     '$(uuidgen)',
+     'APP_NAME',
+     'CLIENT_ID',
+     'BASE64URL_HASH',
+     '[\"https://DOMAIN/auth/callback\", \"http://localhost:5173/auth/callback\"]',
+     '[\"https://DOMAIN\", \"http://localhost:5173\"]',
+     'DOMAIN'
+   );"
+   ```
+
+5. Add service binding to client's wrangler.toml (optional, for same-account):
+   ```toml
+   [[services]]
+   binding = "AUTH"
+   service = "groveauth"
+   ```
+
+**CRITICAL**: Use base64url encoding (dashes `-`, underscores `_`, NO padding `=`) for the secret hash!
+
+The Heartwood API is at `https://auth-api.grove.place`. Session validation: `POST /session/validate`.
+```
+
+---
+
+*Last updated: 2025-12-25*

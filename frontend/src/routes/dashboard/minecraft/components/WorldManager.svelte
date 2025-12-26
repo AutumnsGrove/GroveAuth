@@ -183,12 +183,13 @@
       class="p-1.5 rounded-lg hover:bg-grove-100 dark:hover:bg-gray-600 transition-colors disabled:opacity-50"
       title="Refresh"
     >
-      <RotateCw
-        size={16}
-        strokeWidth={2}
-        class="text-bark/60 dark:text-gray-400"
-        class:animate-spin={isLoading}
-      />
+      <div class:animate-spin={isLoading}>
+        <RotateCw
+          size={16}
+          strokeWidth={2}
+          class="text-bark/60 dark:text-gray-400"
+        />
+      </div>
     </button>
   </div>
 

@@ -22,6 +22,7 @@ import subscription from './routes/subscription.js';
 import admin from './routes/admin.js';
 import session from './routes/session.js';
 import minecraft from './routes/minecraft.js';
+import cdn from './routes/cdn.js';
 
 // Create the main Hono app
 const app = new Hono<{ Bindings: Env }>();
@@ -80,6 +81,7 @@ app.route('/subscription', subscription);
 app.route('/admin', admin);
 app.route('/session', session);
 app.route('/minecraft', minecraft);
+app.route('/cdn', cdn);
 
 // Root - show API info
 app.get('/', (c) => {
@@ -136,6 +138,12 @@ app.get('/', (c) => {
         command: 'POST /minecraft/command',
         sync: 'POST /minecraft/sync',
         history: 'GET /minecraft/history',
+      },
+      cdn: {
+        upload: 'POST /cdn/upload',
+        files: 'GET /cdn/files',
+        folders: 'GET /cdn/folders',
+        delete: 'DELETE /cdn/files/:id',
       },
     },
   });

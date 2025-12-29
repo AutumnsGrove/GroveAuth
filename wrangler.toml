@@ -12,6 +12,7 @@ workers_dev = true
 [vars]
 AUTH_BASE_URL = "https://auth-api.grove.place"
 ENVIRONMENT = "production"
+CDN_URL = "https://cdn.grove.place"
 
 # D1 Database binding (Heartwood auth data)
 [[d1_databases]]
@@ -24,6 +25,11 @@ database_id = "45eae4c7-8ae7-4078-9218-8e1677a4360f"
 binding = "ENGINE_DB"
 database_name = "grove-engine-db"
 database_id = "a6394da2-b7a6-48ce-b7fe-b1eb3e730e68"
+
+# R2 Storage binding (CDN assets)
+[[r2_buckets]]
+binding = "CDN_BUCKET"
+bucket_name = "grove-cdn"
 
 # Custom domain for API
 [[routes]]

@@ -6,32 +6,25 @@
 import { redirect, error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 
-export const load: PageServerLoad = async ({ cookies, fetch }) => {
-	// Get session token from cookie
-	const sessionToken = cookies.get('session');
+export const load: PageServerLoad = async ({ parent, cookies, fetch }) => {
+	const { session } = await parent();
 
-	if (!sessionToken) {
-		throw redirect(302, '/login');
+	// Must be logged in
+	if (!session.authenticated) {
+		throw redirect(303, '/');
 	}
 
-	// Get access token from session
-	const tokenResponse = await fetch('https://auth-api.grove.place/token', {
-		method: 'POST',
-		headers: {
-			'Content-Type': 'application/json',
-		},
-		body: JSON.stringify({
-			grant_type: 'session_token',
-			session_token: sessionToken,
-		}),
-	});
-
-	if (!tokenResponse.ok) {
-		throw redirect(302, '/login');
+	// Must be admin
+	if (!session.user?.is_admin) {
+		throw redirect(303, '/error?error=forbidden&error_description=Admin+access+required');
 	}
 
-	const tokenData = await tokenResponse.json();
-	const accessToken = tokenData.access_token;
+	// Get access token from cookie
+	const accessToken = cookies.get('access_token');
+	if (!accessToken) {
+		// No access token, redirect to home to re-authenticate
+		throw redirect(303, '/');
+	}
 
 	// Fetch files from CDN API
 	try {
@@ -49,6 +42,9 @@ export const load: PageServerLoad = async ({ cookies, fetch }) => {
 		]);
 
 		if (!filesResponse.ok || !foldersResponse.ok) {
+			if (filesResponse.status === 401 || filesResponse.status === 403 || foldersResponse.status === 401 || foldersResponse.status === 403) {
+				throw redirect(303, '/');
+			}
 			throw error(500, 'Failed to load CDN files');
 		}
 
@@ -61,9 +57,13 @@ export const load: PageServerLoad = async ({ cookies, fetch }) => {
 			folders: foldersData.folders || [],
 			cdnUrl: 'https://cdn.grove.place',
 			accessToken, // Pass to client for API calls
+			user: session.user,
 		};
 	} catch (err) {
+		if (err instanceof Response || (err as any)?.status) {
+			throw err;
+		}
 		console.error('[CDN Load Error]', err);
-		throw error(500, 'Failed to load CDN data');
+		throw redirect(303, '/error?error=api_error&error_description=Failed+to+load+CDN+data');
 	}
 };

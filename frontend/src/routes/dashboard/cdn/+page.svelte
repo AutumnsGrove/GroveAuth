@@ -33,6 +33,8 @@
 	let showNewFolder = $state(false);
 	let copiedId = $state<string | null>(null);
 	let deleteConfirmId = $state<string | null>(null);
+	let isMigrating = $state(false);
+	let migrateResult = $state<{ migrated: number; errors?: string[] } | null>(null);
 
 	const accessToken = data.accessToken;
 	const user = data.user;
@@ -196,6 +198,42 @@
 		}
 		deleteConfirmId = null;
 	}
+
+	async function migrateUntrackedFiles() {
+		isMigrating = true;
+		errorMessage = '';
+		migrateResult = null;
+
+		try {
+			const response = await fetch('https://auth-api.grove.place/cdn/migrate', {
+				method: 'POST',
+				headers: {
+					Authorization: `Bearer ${accessToken}`,
+				}
+			});
+
+			const result = await response.json();
+
+			if (response.ok && result.success) {
+				migrateResult = {
+					migrated: result.migrated,
+					errors: result.errors
+				};
+				successMessage = `Successfully migrated ${result.migrated} file${result.migrated !== 1 ? 's' : ''}`;
+
+				// Reload the page to refresh the audit data
+				setTimeout(() => {
+					window.location.reload();
+				}, 2000);
+			} else {
+				throw new Error(result.error || 'Migration failed');
+			}
+		} catch (err) {
+			errorMessage = err instanceof Error ? err.message : 'Migration failed';
+		} finally {
+			isMigrating = false;
+		}
+	}
 </script>
 
 <svelte:head>
@@ -243,14 +281,14 @@
 	<!-- Audit Warning -->
 	{#if data.audit && data.audit.summary.untracked_in_r2 > 0}
 		<div class="mb-6 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-300 px-4 py-4 rounded-lg">
-			<div class="flex items-start justify-between">
+			<div class="flex items-start justify-between gap-4">
 				<div class="flex-1">
 					<h3 class="font-serif font-semibold mb-2">⚠️ Untracked Files Detected</h3>
 					<p class="font-sans text-sm mb-3">
 						Found {data.audit.summary.untracked_in_r2} file{data.audit.summary.untracked_in_r2 > 1 ? 's' : ''} in R2 that {data.audit.summary.untracked_in_r2 > 1 ? 'are' : 'is'} not tracked in the database.
 						These files exist in your CDN but won't show up in this manager.
 					</p>
-					<details class="text-sm">
+					<details class="text-sm mb-3">
 						<summary class="cursor-pointer hover:text-amber-900 dark:hover:text-amber-200 font-sans font-medium mb-2">
 							Show untracked files
 						</summary>
@@ -263,6 +301,25 @@
 							{/each}
 						</ul>
 					</details>
+					<button
+						onclick={migrateUntrackedFiles}
+						disabled={isMigrating}
+						class="px-4 py-2 bg-amber-600 hover:bg-amber-700 dark:bg-amber-700 dark:hover:bg-amber-600 text-white rounded-lg font-sans text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+					>
+						{#if isMigrating}
+							Migrating...
+						{:else}
+							Migrate All to Database
+						{/if}
+					</button>
+					{#if migrateResult}
+						<p class="mt-3 text-sm font-sans text-grove-700 dark:text-grove-400">
+							✓ Successfully migrated {migrateResult.migrated} file{migrateResult.migrated !== 1 ? 's' : ''}
+							{#if migrateResult.errors && migrateResult.errors.length > 0}
+								<span class="text-red-600 dark:text-red-400">with {migrateResult.errors.length} error(s)</span>
+							{/if}
+						</p>
+					{/if}
 				</div>
 			</div>
 		</div>

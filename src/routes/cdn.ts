@@ -363,4 +363,83 @@ cdn.get('/audit', async (c) => {
 	}
 });
 
+/**
+ * POST /cdn/migrate - Migrate untracked R2 files into the database
+ * Admin-only endpoint to import existing R2 files that were uploaded before the CDN manager
+ */
+cdn.post('/migrate', async (c) => {
+	const userId = c.get('userId');
+	const db = createDbSession(c.env);
+
+	try {
+		// List all objects in R2
+		const r2Objects = await c.env.CDN_BUCKET.list();
+
+		// Get all keys from database
+		const dbResult = await db.prepare('SELECT key FROM cdn_files').all();
+		const dbKeys = new Set((dbResult.results || []).map((row: any) => row.key));
+
+		// Find untracked files
+		const untracked = r2Objects.objects.filter((obj) => !dbKeys.has(obj.key));
+
+		if (untracked.length === 0) {
+			return c.json({ message: 'No untracked files to migrate', migrated: 0 });
+		}
+
+		const now = new Date().toISOString();
+		let migratedCount = 0;
+		const errors: string[] = [];
+
+		// Import each untracked file
+		for (const obj of untracked) {
+			try {
+				// Get metadata from R2
+				const r2Obj = await c.env.CDN_BUCKET.head(obj.key);
+				const contentType = r2Obj?.httpMetadata?.contentType || 'application/octet-stream';
+
+				// Parse folder from key
+				const lastSlash = obj.key.lastIndexOf('/');
+				const folder = lastSlash > 0 ? '/' + obj.key.substring(0, lastSlash) : '/';
+				const filename = lastSlash > 0 ? obj.key.substring(lastSlash + 1) : obj.key;
+
+				const fileId = generateId();
+
+				await db
+					.prepare(
+						`INSERT INTO cdn_files (id, filename, original_filename, key, content_type, size_bytes, folder, alt_text, uploaded_by, created_at, updated_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+					)
+					.bind(
+						fileId,
+						filename,
+						filename, // original_filename same as filename for migrated files
+						obj.key,
+						contentType,
+						obj.size,
+						folder,
+						null, // No alt text for migrated files
+						userId,
+						obj.uploaded.toISOString(),
+						now
+					)
+					.run();
+
+				migratedCount++;
+			} catch (err) {
+				errors.push(`Failed to migrate ${obj.key}: ${err}`);
+			}
+		}
+
+		return c.json({
+			success: true,
+			migrated: migratedCount,
+			total_untracked: untracked.length,
+			errors: errors.length > 0 ? errors : undefined,
+		});
+	} catch (error) {
+		console.error('[CDN Migrate Error]', error);
+		return c.json({ error: 'Failed to migrate files' }, 500);
+	}
+});
+
 export default cdn;

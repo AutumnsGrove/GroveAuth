@@ -28,6 +28,7 @@ import {
   getDeviceId,
   parseDeviceName,
   createSessionCookieHeader,
+  createSessionCookie,
   getClientIP as getSessionClientIP,
   getUserAgent as getSessionUserAgent,
 } from '../../lib/session.js';
@@ -218,7 +219,28 @@ github.get('/callback', async (c) => {
     c.env.SESSION_SECRET
   );
 
-  // Generate authorization code for the client
+  // Check if this is an internal service (like Mycelium)
+  // Internal services get session tokens instead of auth codes
+  const client = await getClientByClientId(db, savedState.client_id);
+  if (client?.is_internal_service) {
+    const sessionToken = await createSessionCookie(sessionId, user.id, c.env.SESSION_SECRET);
+    const redirect = buildInternalServiceRedirect(
+      savedState.redirect_uri,
+      sessionToken,
+      user.id,
+      user.email,
+      savedState.state
+    );
+    return new Response(null, {
+      status: 302,
+      headers: {
+        Location: redirect,
+        'Set-Cookie': sessionCookieHeader,
+      },
+    });
+  }
+
+  // Generate authorization code for the client (standard OAuth flow)
   const authCode = generateAuthCode();
   const expiresAt = new Date(Date.now() + AUTH_CODE_EXPIRY * 1000).toISOString();
 
@@ -259,6 +281,25 @@ function buildErrorRedirect(
   const url = new URL(redirectUri);
   url.searchParams.set('error', error);
   url.searchParams.set('error_description', errorDescription);
+  url.searchParams.set('state', state);
+  return url.toString();
+}
+
+/**
+ * Build redirect URL for internal Grove services
+ * Returns session token + user info instead of auth code
+ */
+function buildInternalServiceRedirect(
+  redirectUri: string,
+  sessionToken: string,
+  userId: string,
+  email: string,
+  state: string
+): string {
+  const url = new URL(redirectUri);
+  url.searchParams.set('session_token', sessionToken);
+  url.searchParams.set('user_id', userId);
+  url.searchParams.set('email', email);
   url.searchParams.set('state', state);
   return url.toString();
 }

@@ -28,13 +28,18 @@ export const load: PageServerLoad = async ({ parent, cookies, fetch }) => {
 
 	// Fetch files from CDN API
 	try {
-		const [filesResponse, foldersResponse] = await Promise.all([
+		const [filesResponse, foldersResponse, auditResponse] = await Promise.all([
 			fetch('https://auth-api.grove.place/cdn/files?limit=50&offset=0', {
 				headers: {
 					Authorization: `Bearer ${accessToken}`,
 				},
 			}),
 			fetch('https://auth-api.grove.place/cdn/folders', {
+				headers: {
+					Authorization: `Bearer ${accessToken}`,
+				},
+			}),
+			fetch('https://auth-api.grove.place/cdn/audit', {
 				headers: {
 					Authorization: `Bearer ${accessToken}`,
 				},
@@ -50,11 +55,13 @@ export const load: PageServerLoad = async ({ parent, cookies, fetch }) => {
 
 		const filesData = await filesResponse.json();
 		const foldersData = await foldersResponse.json();
+		const auditData = auditResponse.ok ? await auditResponse.json() : null;
 
 		return {
 			files: filesData.files || [],
 			total: filesData.total || 0,
 			folders: foldersData.folders || [],
+			audit: auditData,
 			cdnUrl: 'https://cdn.grove.place',
 			accessToken, // Pass to client for API calls
 			user: session.user,

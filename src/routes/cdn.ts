@@ -316,4 +316,51 @@ cdn.delete('/files/:id', async (c) => {
 	}
 });
 
+/**
+ * GET /cdn/audit - Check for discrepancies between R2 and database
+ * Admin-only endpoint to identify files in R2 that aren't tracked in the database
+ */
+cdn.get('/audit', async (c) => {
+	const db = createDbSession(c.env);
+
+	try {
+		// List all objects in R2
+		const r2Objects = await c.env.CDN_BUCKET.list();
+
+		// Get all keys from database
+		const dbResult = await db.prepare('SELECT key FROM cdn_files').all();
+		const dbKeys = new Set((dbResult.results || []).map((row: any) => row.key));
+
+		// Find objects in R2 but not in database
+		const untracked = r2Objects.objects
+			.filter((obj) => !dbKeys.has(obj.key))
+			.map((obj) => ({
+				key: obj.key,
+				size: obj.size,
+				uploaded: obj.uploaded.toISOString(),
+				url: `${c.env.CDN_URL}/${obj.key}`,
+			}));
+
+		// Find entries in database but not in R2
+		const r2Keys = new Set(r2Objects.objects.map((obj) => obj.key));
+		const orphaned = (dbResult.results || [])
+			.filter((row: any) => !r2Keys.has(row.key))
+			.map((row: any) => row.key);
+
+		return c.json({
+			summary: {
+				total_r2_objects: r2Objects.objects.length,
+				total_db_entries: dbResult.results?.length || 0,
+				untracked_in_r2: untracked.length,
+				orphaned_in_db: orphaned.length,
+			},
+			untracked_files: untracked,
+			orphaned_db_entries: orphaned,
+		});
+	} catch (error) {
+		console.error('[CDN Audit Error]', error);
+		return c.json({ error: 'Failed to audit CDN' }, 500);
+	}
+});
+
 export default cdn;

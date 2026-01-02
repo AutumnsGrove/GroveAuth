@@ -209,7 +209,14 @@
 			<Logo size="sm" />
 			<div>
 				<h1 class="text-2xl font-serif text-bark dark:text-gray-100">CDN Manager</h1>
-				<p class="text-sm text-bark/60 dark:text-gray-400 font-sans">{files.length} files uploaded</p>
+				<p class="text-sm text-bark/60 dark:text-gray-400 font-sans">
+					{files.length} tracked file{files.length !== 1 ? 's' : ''}
+					{#if data.audit}
+						<span class="text-bark/40 dark:text-gray-500">
+							/ {data.audit.summary.total_r2_objects} total in CDN
+						</span>
+					{/if}
+				</p>
 			</div>
 		</div>
 		<div class="flex items-center gap-4">
@@ -232,6 +239,34 @@
 			</button>
 		</div>
 	</header>
+
+	<!-- Audit Warning -->
+	{#if data.audit && data.audit.summary.untracked_in_r2 > 0}
+		<div class="mb-6 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-300 px-4 py-4 rounded-lg">
+			<div class="flex items-start justify-between">
+				<div class="flex-1">
+					<h3 class="font-serif font-semibold mb-2">⚠️ Untracked Files Detected</h3>
+					<p class="font-sans text-sm mb-3">
+						Found {data.audit.summary.untracked_in_r2} file{data.audit.summary.untracked_in_r2 > 1 ? 's' : ''} in R2 that {data.audit.summary.untracked_in_r2 > 1 ? 'are' : 'is'} not tracked in the database.
+						These files exist in your CDN but won't show up in this manager.
+					</p>
+					<details class="text-sm">
+						<summary class="cursor-pointer hover:text-amber-900 dark:hover:text-amber-200 font-sans font-medium mb-2">
+							Show untracked files
+						</summary>
+						<ul class="space-y-1 mt-2 ml-4 font-mono text-xs">
+							{#each data.audit.untracked_files as untrackedFile}
+								<li class="flex items-center justify-between gap-4 py-1">
+									<span class="truncate">{untrackedFile.key}</span>
+									<span class="text-bark/50 dark:text-gray-500 whitespace-nowrap">{formatBytes(untrackedFile.size)}</span>
+								</li>
+							{/each}
+						</ul>
+					</details>
+				</div>
+			</div>
+		</div>
+	{/if}
 
 	<!-- Messages -->
 	{#if errorMessage}

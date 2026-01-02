@@ -41,6 +41,7 @@ export interface Client {
   redirect_uris: string; // JSON array
   allowed_origins: string; // JSON array
   domain: string | null; // Primary domain for redirects
+  is_internal_service: number; // 0 or 1 - internal services get session tokens instead of auth codes
   created_at: string;
   updated_at: string;
 }

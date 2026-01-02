@@ -26,6 +26,7 @@ import { createDbSession } from '../db/session.js';
 import {
   getSessionFromRequest,
   clearSessionCookieHeader,
+  parseSessionCookie,
 } from '../lib/session.js';
 import type { SessionDO } from '../durables/SessionDO.js';
 
@@ -370,6 +371,70 @@ session.get('/check', async (c) => {
         }
       : null,
     last_used_client_id: prefs?.last_used_client_id || null,
+  });
+});
+
+/**
+ * POST /session/validate-service
+ * Validate a session token for internal Grove services (like Mycelium)
+ * Unlike /validate which uses cookies, this accepts the token in the request body
+ */
+session.post('/validate-service', async (c) => {
+  const db = createDbSession(c.env);
+
+  let sessionToken: string;
+  try {
+    const body = await c.req.json<{ session_token: string }>();
+    sessionToken = body.session_token;
+  } catch {
+    return c.json({ valid: false, error: 'Invalid request body' }, 400);
+  }
+
+  if (!sessionToken) {
+    return c.json({ valid: false, error: 'Missing session_token' }, 400);
+  }
+
+  // Parse and verify the session token signature
+  const parsedSession = await parseSessionCookie(sessionToken, c.env.SESSION_SECRET);
+
+  if (!parsedSession) {
+    return c.json({ valid: false, error: 'Invalid session token signature' }, 401);
+  }
+
+  // Validate the session in SessionDO
+  const sessionDO = c.env.SESSIONS.get(
+    c.env.SESSIONS.idFromName(`session:${parsedSession.userId}`)
+  ) as DurableObjectStub<SessionDO>;
+
+  const result = await sessionDO.validateSession(parsedSession.sessionId);
+
+  if (!result.valid) {
+    return c.json({ valid: false, error: 'Session expired or revoked' }, 401);
+  }
+
+  // Get user info
+  const user = await getUserById(db, parsedSession.userId);
+
+  if (!user) {
+    return c.json({ valid: false, error: 'User not found' }, 401);
+  }
+
+  const isAdmin = user.is_admin === 1 || isEmailAdmin(user.email);
+
+  return c.json({
+    valid: true,
+    user: {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      avatarUrl: user.avatar_url,
+      isAdmin,
+    },
+    session: {
+      id: parsedSession.sessionId,
+      deviceName: result.session?.deviceName,
+      lastActiveAt: result.session?.lastActiveAt,
+    },
   });
 });
 

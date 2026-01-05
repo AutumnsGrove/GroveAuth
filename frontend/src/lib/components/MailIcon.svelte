@@ -5,7 +5,7 @@
     class?: string;
   }
 
-  let { class: className = '' }: Props = $props();
+  let { class: className = 'w-5 h-5' }: Props = $props();
 </script>
 
-<Mail class={className || 'w-5 h-5'} />
+<Mail class={className} />

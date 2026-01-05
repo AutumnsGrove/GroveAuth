@@ -17,5 +17,5 @@
 
 <ShieldCheck
   size={sizes[size]}
-  class="text-grove-600 dark:text-grove-400 {className}"
+  class="text-grove-600 dark:text-grove-400 {className} w-auto h-auto"
 />

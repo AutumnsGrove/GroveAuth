@@ -23,6 +23,7 @@ import admin from './routes/admin.js';
 import session from './routes/session.js';
 import minecraft from './routes/minecraft.js';
 import cdn from './routes/cdn.js';
+import betterAuth from './routes/betterAuth.js';
 
 // Create the main Hono app
 const app = new Hono<{ Bindings: Env }>();
@@ -83,6 +84,10 @@ app.route('/session', session);
 app.route('/minecraft', minecraft);
 app.route('/cdn', cdn);
 
+// Better Auth routes (new auth system)
+// Handles: /api/auth/sign-in/*, /api/auth/sign-out, /api/auth/session, etc.
+app.route('/api/auth', betterAuth);
+
 // Root - show API info
 app.get('/', (c) => {
   return c.json({
@@ -91,6 +96,18 @@ app.get('/', (c) => {
     description: 'Centralized authentication service for AutumnsGrove properties',
     documentation: 'https://github.com/AutumnsGrove/GroveAuth',
     endpoints: {
+      // Better Auth (new, recommended)
+      betterAuth: {
+        signInSocial: 'POST /api/auth/sign-in/social',
+        signInMagicLink: 'POST /api/auth/sign-in/magic-link',
+        signInPasskey: 'POST /api/auth/sign-in/passkey',
+        signOut: 'POST /api/auth/sign-out',
+        session: 'GET /api/auth/session',
+        passkeyRegister: 'POST /api/auth/passkey/register',
+        callbackGoogle: 'GET /api/auth/callback/google',
+        callbackGithub: 'GET /api/auth/callback/github',
+      },
+      // Legacy endpoints (maintained for backwards compatibility)
       login: 'GET /login',
       oauth: {
         google: 'GET /oauth/google',

@@ -46,6 +46,12 @@ class_name = "SessionDO"
 tag = "v1"
 new_sqlite_classes = ["SessionDO"]
 
+# KV Namespace for session caching (Better Auth)
+[[kv_namespaces]]
+binding = "SESSION_KV"
+id = "placeholder-session-kv-id"
+# Create with: wrangler kv namespace create SESSION_KV
+
 # Secrets (set via `wrangler secret put <NAME>`):
 # - JWT_PRIVATE_KEY: RSA private key for signing JWTs (PEM format)
 # - JWT_PUBLIC_KEY: RSA public key for verifying JWTs (PEM format)
@@ -55,3 +61,4 @@ new_sqlite_classes = ["SessionDO"]
 # - GITHUB_CLIENT_SECRET: GitHub OAuth client secret
 # - RESEND_API_KEY: Resend API key for sending emails
 # - SESSION_SECRET: Secret for signing session cookies (32+ bytes)
+# - BETTER_AUTH_SECRET: Secret for Better Auth (can reuse SESSION_SECRET)

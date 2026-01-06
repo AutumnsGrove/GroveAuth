@@ -2,23 +2,29 @@
  * Better Auth Drizzle Schema for Heartwood
  *
  * This schema defines the tables required by Better Auth, extended with
- * Grove-specific fields like isAdmin for authorization.
+ * Grove-specific fields for multi-tenancy and moderation.
  *
- * Table naming uses plural form (users, sessions, accounts, etc.) as
- * configured in the Better Auth setup via `usePlural: true`.
+ * Table naming uses `ba_` prefix as per migration plan to clearly
+ * distinguish Better Auth tables from legacy Heartwood tables.
  */
 
 import { sqliteTable, text, integer } from 'drizzle-orm/sqlite-core';
 
+// =============================================================================
+// BETTER AUTH TABLES (ba_ prefix)
+// =============================================================================
+
 /**
- * Users table - Core user identity
+ * ba_user - Core user identity
  *
- * Extended from Better Auth base schema with:
- * - isAdmin: Boolean flag for administrative access
- * - avatarUrl: Profile picture URL from OAuth provider
- * - providerId: Original provider user ID
+ * Extended from Better Auth base schema with Grove-specific fields:
+ * - tenantId: Multi-tenant association
+ * - isAdmin: Administrative access flag
+ * - loginCount: Track login frequency
+ * - banned/banReason/banExpires: Moderation controls
  */
-export const users = sqliteTable('users', {
+export const baUser = sqliteTable('ba_user', {
+  // Better Auth core fields
   id: text('id').primaryKey(),
   email: text('email').notNull().unique(),
   emailVerified: integer('email_verified', { mode: 'boolean' }).default(false),
@@ -28,32 +34,37 @@ export const users = sqliteTable('users', {
   updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
 
   // Grove-specific extensions
+  tenantId: text('tenant_id'), // Multi-tenant association
   isAdmin: integer('is_admin', { mode: 'boolean' }).default(false),
-  avatarUrl: text('avatar_url'),
-  providerId: text('provider_id'),
+  loginCount: integer('login_count').default(0),
+
+  // Moderation fields (replacing simple is_active)
+  banned: integer('banned', { mode: 'boolean' }).default(false),
+  banReason: text('ban_reason'),
+  banExpires: integer('ban_expires', { mode: 'timestamp' }),
 });
 
 /**
- * Sessions table - Active user sessions
+ * ba_session - Active user sessions
  *
  * Better Auth uses this for session management. With KV caching enabled,
  * frequently accessed sessions are cached in Cloudflare KV for speed.
  */
-export const sessions = sqliteTable('sessions', {
+export const baSession = sqliteTable('ba_session', {
   id: text('id').primaryKey(),
   userId: text('user_id')
     .notNull()
-    .references(() => users.id, { onDelete: 'cascade' }),
+    .references(() => baUser.id, { onDelete: 'cascade' }),
   token: text('token').notNull().unique(),
   expiresAt: integer('expires_at', { mode: 'timestamp' }).notNull(),
   createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
   updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
 
-  // Cloudflare geolocation tracking (via better-auth-cloudflare)
+  // Request metadata
   ipAddress: text('ip_address'),
   userAgent: text('user_agent'),
 
-  // Extended geolocation fields
+  // Cloudflare geolocation (via better-auth-cloudflare)
   country: text('country'),
   city: text('city'),
   region: text('region'),
@@ -61,16 +72,16 @@ export const sessions = sqliteTable('sessions', {
 });
 
 /**
- * Accounts table - OAuth provider connections
+ * ba_account - OAuth provider connections
  *
  * Links users to their OAuth provider accounts (Google, GitHub, etc.).
  * A user can have multiple accounts linked.
  */
-export const accounts = sqliteTable('accounts', {
+export const baAccount = sqliteTable('ba_account', {
   id: text('id').primaryKey(),
   userId: text('user_id')
     .notNull()
-    .references(() => users.id, { onDelete: 'cascade' }),
+    .references(() => baUser.id, { onDelete: 'cascade' }),
   accountId: text('account_id').notNull(), // Provider's user ID
   providerId: text('provider_id').notNull(), // 'google', 'github', etc.
   accessToken: text('access_token'),
@@ -84,12 +95,12 @@ export const accounts = sqliteTable('accounts', {
 });
 
 /**
- * Verifications table - Magic links and email verification tokens
+ * ba_verification - Magic links and email verification tokens
  *
- * Stores temporary tokens for magic link authentication and
- * email verification flows.
+ * Stores temporary tokens for magic link authentication.
+ * Tokens are deleted upon use (not marked as used).
  */
-export const verifications = sqliteTable('verifications', {
+export const baVerification = sqliteTable('ba_verification', {
   id: text('id').primaryKey(),
   identifier: text('identifier').notNull(), // Email address
   value: text('value').notNull(), // Token value
@@ -99,15 +110,15 @@ export const verifications = sqliteTable('verifications', {
 });
 
 /**
- * Passkeys table - WebAuthn credentials
+ * ba_passkey - WebAuthn credentials
  *
  * Stores passkey (WebAuthn) credentials for passwordless authentication.
  */
-export const passkeys = sqliteTable('passkeys', {
+export const baPasskey = sqliteTable('ba_passkey', {
   id: text('id').primaryKey(),
   userId: text('user_id')
     .notNull()
-    .references(() => users.id, { onDelete: 'cascade' }),
+    .references(() => baUser.id, { onDelete: 'cascade' }),
   name: text('name'), // User-provided name for the passkey
   publicKey: text('public_key').notNull(),
   credentialId: text('credential_id').notNull().unique(),
@@ -167,9 +178,7 @@ export const auditLog = sqliteTable('audit_log', {
  */
 export const userSubscriptions = sqliteTable('user_subscriptions', {
   id: text('id').primaryKey(),
-  userId: text('user_id')
-    .notNull()
-    .references(() => users.id, { onDelete: 'cascade' }),
+  userId: text('user_id').notNull(),
   tier: text('tier').notNull().default('seedling'),
   postLimit: integer('post_limit'),
   postCount: integer('post_count').default(0),

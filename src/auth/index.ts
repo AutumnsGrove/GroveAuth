@@ -6,8 +6,9 @@
  *
  * Grove-specific features:
  * - Email allowlist enforcement (admin-only access)
- * - Extended user schema with is_admin and subscription fields
+ * - Extended user schema with tenantId, isAdmin, banned, etc.
  * - Cross-subdomain session cookie (.grove.place)
+ * - Rate limiting via Grove's Threshold pattern (not Better Auth's built-in)
  */
 
 import { betterAuth } from 'better-auth';
@@ -104,18 +105,30 @@ export function createAuth(env: Env) {
       {
         autoDetectIpAddress: true,
         geolocationTracking: true,
-        d1: { db, options: { usePlural: true } },
+        d1: {
+          db,
+          options: {
+            // Use ba_ prefix for Better Auth tables
+            usePlural: false, // ba_user, ba_session, etc. (not plural)
+          },
+        },
         kv: env.SESSION_KV,
       },
       {
-        // Rate limiting configuration (KV requires minimum 60s TTL)
+        // Disable Better Auth's built-in rate limiting
+        // Grove uses its own Threshold pattern for rate limiting
         rateLimit: {
-          enabled: true,
-          window: 60,
-          max: 100,
+          enabled: false,
         },
       }
     ),
+
+    // Table name configuration - use ba_ prefix
+    // This maps to our migration: ba_user, ba_session, ba_account, ba_verification
+    database: {
+      type: 'd1',
+      tablePrefix: 'ba_',
+    },
 
     // Session configuration
     session: {
@@ -144,22 +157,47 @@ export function createAuth(env: Env) {
       },
     },
 
-    // Extended user schema
+    // Extended user schema (Grove-specific fields)
     user: {
       additionalFields: {
+        // Multi-tenant association
+        tenantId: {
+          type: 'string',
+          required: false,
+          input: false,
+        },
+        // Administrative access flag
         isAdmin: {
           type: 'boolean',
           required: false,
           defaultValue: false,
-          input: false, // Not settable by user
+          input: false,
         },
-        avatarUrl: {
+        // Track login frequency
+        loginCount: {
+          type: 'number',
+          required: false,
+          defaultValue: 0,
+          input: false,
+        },
+        // Moderation: is user banned?
+        banned: {
+          type: 'boolean',
+          required: false,
+          defaultValue: false,
+          input: false,
+        },
+        // Moderation: reason for ban
+        banReason: {
           type: 'string',
           required: false,
+          input: false,
         },
-        providerId: {
-          type: 'string',
+        // Moderation: when ban expires (null = permanent)
+        banExpires: {
+          type: 'date',
           required: false,
+          input: false,
         },
       },
     },

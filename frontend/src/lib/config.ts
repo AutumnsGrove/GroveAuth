@@ -9,6 +9,19 @@ export const AUTH_API_URL = 'https://auth-api.grove.place';
 export const config = {
   apiUrl: AUTH_API_URL,
   endpoints: {
+    // Better Auth endpoints (new, recommended)
+    betterAuth: {
+      signInSocial: '/api/auth/sign-in/social',
+      signInMagicLink: '/api/auth/sign-in/magic-link',
+      signInPasskey: '/api/auth/sign-in/passkey',
+      signOut: '/api/auth/sign-out',
+      session: '/api/auth/session',
+      passkeyRegister: '/api/auth/passkey/register',
+      passkeyList: '/api/auth/passkey/list',
+      callbackGoogle: '/api/auth/callback/google',
+      callbackGithub: '/api/auth/callback/github',
+    },
+    // Legacy endpoints (maintained for backwards compatibility)
     login: '/login',
     oauthGoogle: '/oauth/google',
     oauthGithub: '/oauth/github',

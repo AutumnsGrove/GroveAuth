@@ -49,8 +49,7 @@ new_sqlite_classes = ["SessionDO"]
 # KV Namespace for session caching (Better Auth)
 [[kv_namespaces]]
 binding = "SESSION_KV"
-id = "placeholder-session-kv-id"
-# Create with: wrangler kv namespace create SESSION_KV
+id = "7cfbd9e67125405994b49ecf80a372a4"
 
 # Secrets (set via `wrangler secret put <NAME>`):
 # - JWT_PRIVATE_KEY: RSA private key for signing JWTs (PEM format)

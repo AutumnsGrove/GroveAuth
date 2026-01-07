@@ -16,8 +16,10 @@ Heartwood is a Cloudflare Worker-based authentication service that handles all a
 
 ### Features
 
-- **Multiple Auth Providers**: Google OAuth, GitHub OAuth, Magic Code (email)
-- **Secure Token Management**: JWT access tokens (1hr) + refresh tokens (30d)
+- **Multiple Auth Providers**: Google OAuth, GitHub OAuth, Magic Links (email)
+- **Passkey Support**: WebAuthn passwordless authentication
+- **Session-Based Auth**: KV-cached sessions for sub-100ms validation
+- **Cross-Subdomain SSO**: Single sign-on across all .grove.place properties
 - **PKCE Support**: Proof Key for Code Exchange for enhanced security
 - **Rate Limiting**: Protection against brute force attacks
 - **Audit Logging**: Track all authentication events
@@ -29,9 +31,10 @@ Heartwood is a Cloudflare Worker-based authentication service that handles all a
 
 - **Runtime**: Cloudflare Workers
 - **Database**: Cloudflare D1 (SQLite)
-- **Framework**: Hono.js
+- **Session Cache**: Cloudflare KV
+- **Framework**: Hono.js + Better Auth
 - **Language**: TypeScript
-- **JWT**: jose library with RS256 signing
+- **ORM**: Drizzle ORM
 
 ---
 
@@ -90,18 +93,29 @@ pnpm deploy
 
 ## API Endpoints
 
+### Better Auth Endpoints (Recommended)
+
+| Method | Endpoint | Purpose |
+|--------|----------|---------|
+| POST | `/api/auth/sign-in/social` | OAuth sign-in (Google, GitHub) |
+| POST | `/api/auth/sign-in/magic-link` | Magic link sign-in |
+| POST | `/api/auth/sign-in/passkey` | Passkey (WebAuthn) sign-in |
+| GET | `/api/auth/callback/:provider` | OAuth callbacks |
+| POST | `/api/auth/passkey/register` | Register new passkey |
+| GET | `/api/auth/session` | Get current session |
+| POST | `/api/auth/sign-out` | Sign out |
+
+### Legacy Endpoints (Backwards Compatible)
+
 | Method | Endpoint | Purpose |
 |--------|----------|---------|
 | GET | `/login` | Login page with provider selection |
 | GET | `/oauth/google` | Initiate Google OAuth |
-| GET | `/oauth/google/callback` | Google OAuth callback |
 | GET | `/oauth/github` | Initiate GitHub OAuth |
-| GET | `/oauth/github/callback` | GitHub OAuth callback |
 | POST | `/magic/send` | Send magic code email |
 | POST | `/magic/verify` | Verify magic code |
 | POST | `/token` | Exchange auth code for tokens |
 | POST | `/token/refresh` | Refresh access token |
-| POST | `/token/revoke` | Revoke refresh token |
 | GET | `/verify` | Verify access token |
 | GET | `/userinfo` | Get current user info |
 | POST | `/logout` | Logout and revoke tokens |

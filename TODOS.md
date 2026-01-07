@@ -34,6 +34,19 @@
 - [x] Add DarkReader lock meta tag to disable DarkReader extension
 - [x] Fix subdomain detection on Cloudflare Pages (use x-forwarded-host header)
 
+## Completed (2026-01-07)
+- [x] **Better Auth Migration** — Major performance improvement!
+  - [x] Integrated Better Auth with Cloudflare D1/KV
+  - [x] Added Google, GitHub OAuth via Better Auth
+  - [x] Added magic link plugin with Resend
+  - [x] Added passkey (WebAuthn) plugin for passwordless auth
+  - [x] Created Drizzle schema for Better Auth tables (ba_user, ba_session, ba_account, ba_verification, ba_passkey)
+  - [x] Migrated existing users to Better Auth tables
+  - [x] Added KV namespace for session caching (sub-100ms validation!)
+  - [x] Cross-subdomain cookies for .grove.place SSO
+  - [x] Legacy endpoints preserved for backwards compatibility
+  - **Result:** Auth flow reduced from ~15s to ~1.5-2s 🎉
+
 ## In Progress
 - [ ] Fix heartwood.grove.place routing (domain added to Pages, but traffic still going through wildcard router)
   - May need to remove domain from router worker and re-add to Pages project
@@ -46,6 +59,7 @@
 - [ ] Test login.grove.place redirect behavior
 - [ ] Test full OAuth flow end-to-end for all providers
 - [ ] Remove debug error messages from grove.place callback
+- [ ] Migrate Grove clients to use new `/api/auth/*` endpoints (optional, legacy still works)
 
 ## Admin Dashboard Fixes
 - [ ] Dashboard not showing all registered clients (missing GroveScout, GroveMusic, etc.)
@@ -57,7 +71,7 @@
 - [ ] Update GroveEngine domains to use GroveAuth for admin authentication
 
 ## Future Enhancements (Post v1)
-- [ ] WebAuthn/Passkey support
+- [x] WebAuthn/Passkey support — Now available via Better Auth!
 - [ ] Session management UI (view/revoke sessions)
 - [ ] Multi-factor authentication
 - [ ] IP-based access restrictions

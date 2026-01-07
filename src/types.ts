@@ -14,12 +14,19 @@ export interface Env {
   // D1 Database (GroveEngine data - email signups, etc.)
   ENGINE_DB: D1Database;
 
-  // Durable Objects
+  // KV Namespace for Better Auth session caching
+  SESSION_KV: KVNamespace;
+
+  // Durable Objects (legacy - maintained for migration period)
   SESSIONS: DurableObjectNamespace;
+
+  // R2 Storage binding (CDN assets)
+  CDN_BUCKET: R2Bucket;
 
   // Environment variables
   AUTH_BASE_URL: string;
   ENVIRONMENT: string;
+  CDN_URL: string;
 
   // Secrets (set via wrangler secret put)
   JWT_PRIVATE_KEY: string;

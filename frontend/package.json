@@ -23,6 +23,8 @@
     "vite": "^6.0.0"
   },
   "dependencies": {
+    "@better-auth/passkey": "^1.4.10",
+    "better-auth": "^1.4.10",
     "lucide-svelte": "^0.513.0"
   }
 }

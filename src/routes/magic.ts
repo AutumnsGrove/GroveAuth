@@ -100,8 +100,8 @@ magic.post('/send', async (c) => {
   }
 
   // Always return success to prevent email enumeration
-  // But only actually send email if allowed
-  const allowed = await isEmailAllowed(db, email);
+  // But only actually send email if allowed (or if public signup is enabled)
+  const allowed = await isEmailAllowed(db, email, c.env.PUBLIC_SIGNUP_ENABLED === 'true');
 
   if (allowed) {
     // Check if account is locked
@@ -215,7 +215,7 @@ magic.post('/verify', async (c) => {
   // Clear failed attempts on success
   await clearFailedAttempts(db, email);
 
-  // Authenticate user (checks allowlist, creates/updates user)
+  // Authenticate user (checks allowlist unless public signup is enabled)
   const user = await authenticateUser(
     db,
     {
@@ -229,6 +229,7 @@ magic.post('/verify', async (c) => {
       client_id: client_id,
       ip_address: getClientIP(c.req.raw),
       user_agent: getUserAgent(c.req.raw),
+      publicSignupEnabled: c.env.PUBLIC_SIGNUP_ENABLED === 'true',
     }
   );
 

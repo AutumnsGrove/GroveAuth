@@ -269,9 +269,16 @@ export function createAuth(env: Env) {
     // Hooks for Grove-specific logic
     databaseHooks: {
       user: {
-        // Enforce email allowlist before creating user
+        // Enforce email allowlist before creating user (unless public signup is enabled)
         create: {
           before: async (user) => {
+            // Check feature flag first - if public signup is enabled, skip allowlist
+            if (env.PUBLIC_SIGNUP_ENABLED === 'true') {
+              console.log(`[Auth] Public signup enabled - creating user: ${user.email}`);
+              return { data: user };
+            }
+
+            // Existing allowlist enforcement
             const allowed = await isEmailAllowed(groveDb, user.email);
             if (!allowed) {
               console.log(`[Auth] Blocked signup for non-allowlisted email: ${user.email}`);

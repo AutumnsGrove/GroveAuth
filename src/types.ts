@@ -28,6 +28,9 @@ export interface Env {
   ENVIRONMENT: string;
   CDN_URL: string;
 
+  // Feature flags
+  PUBLIC_SIGNUP_ENABLED?: string; // 'true' to allow public signup (bypass allowlist)
+
   // Secrets (set via wrangler secret put)
   JWT_PRIVATE_KEY: string;
   JWT_PUBLIC_KEY: string;

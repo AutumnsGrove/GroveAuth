@@ -148,7 +148,7 @@ google.get('/callback', async (c) => {
     return c.redirect(errorRedirect);
   }
 
-  // Authenticate user (checks allowlist, creates/updates user)
+  // Authenticate user (checks allowlist unless public signup is enabled)
   const user = await authenticateUser(
     db,
     {
@@ -162,6 +162,7 @@ google.get('/callback', async (c) => {
       client_id: savedState.client_id,
       ip_address: getClientIP(c.req.raw),
       user_agent: getUserAgent(c.req.raw),
+      publicSignupEnabled: c.env.PUBLIC_SIGNUP_ENABLED === 'true',
     }
   );
 

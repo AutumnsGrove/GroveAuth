@@ -12,7 +12,11 @@ import {
 
 /**
  * Authenticate a user after OAuth or magic code verification
- * Returns the user if email is in allowlist, null otherwise
+ * Returns the user if email is allowed, null otherwise
+ *
+ * @param db - Database connection
+ * @param data - User data from OAuth provider or magic code
+ * @param context - Request context including client_id and optional publicSignupEnabled flag
  */
 export async function authenticateUser(
   db: D1DatabaseOrSession,
@@ -27,10 +31,11 @@ export async function authenticateUser(
     client_id: string;
     ip_address?: string;
     user_agent?: string;
+    publicSignupEnabled?: boolean;
   }
 ): Promise<User | null> {
-  // Check if email is in allowlist
-  const allowed = await isEmailAllowed(db, data.email);
+  // Check if email is allowed (respects public signup flag)
+  const allowed = await isEmailAllowed(db, data.email, context.publicSignupEnabled);
 
   if (!allowed) {
     // Log failed attempt

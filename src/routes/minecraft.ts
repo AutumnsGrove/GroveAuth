@@ -12,7 +12,12 @@ import { createDbSession } from '../db/session.js';
 // Use custom domain to avoid Cloudflare error 1042 (worker-to-worker fetch restriction)
 const MC_CONTROL_URL = 'https://mc-control.grove.place';
 
-const minecraft = new Hono<{ Bindings: Env }>();
+// Define context variables for type-safe c.set()/c.get()
+type Variables = {
+  accessToken: string;
+};
+
+const minecraft = new Hono<{ Bindings: Env; Variables: Variables }>();
 
 /**
  * Middleware: Verify admin access

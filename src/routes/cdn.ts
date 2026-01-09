@@ -9,7 +9,12 @@ import { verifyAccessToken } from '../services/jwt.js';
 import { isUserAdmin } from '../db/queries.js';
 import { createDbSession } from '../db/session.js';
 
-const cdn = new Hono<{ Bindings: Env }>();
+// Define context variables for type-safe c.set()/c.get()
+type Variables = {
+	userId: string;
+};
+
+const cdn = new Hono<{ Bindings: Env; Variables: Variables }>();
 
 // Allowed MIME types (expanded from images-only to support all web assets)
 const ALLOWED_TYPES = [

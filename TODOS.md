@@ -81,10 +81,17 @@
   - Services ID, JWT-based client secret (expires every 6 months)
   - Add to socialProviders once account is set up
   - Target: ~1-2 months out
-- [ ] **Required 2FA for Evergreen+ tiers** — Post-launch enhancement
-  - Enforce 2FA for premium subscription tiers
-  - Admin override capability for lockouts
-  - Target: After public launch
+
+## Completed (2026-01-10)
+- [x] **Required 2FA for Evergreen+ tiers** — Premium tier security enhancement
+  - [x] Added `two_factor_exempt` and `two_factor_required_bypass_until` columns to user_subscriptions
+  - [x] Implemented tier-based 2FA requirement (evergreen, canopy, platform tiers)
+  - [x] Added 72-hour bypass when upgrading to a tier that requires 2FA
+  - [x] Admin endpoints for exemption management (`/admin/users/:userId/2fa-exempt`)
+  - [x] Admin endpoints for temporary bypass (`/admin/users/:userId/2fa-bypass`)
+  - [x] User-facing 2FA compliance check endpoint (`/subscription/2fa-required`)
+  - [x] Settings page shows 2FA requirement status with warnings
+  - [x] Disable button blocked when 2FA is required for user's tier
 
 ## Code Quality
 - [ ] Add comprehensive unit tests

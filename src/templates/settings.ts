@@ -11,12 +11,20 @@ interface SettingsPageOptions {
     email: string;
     image: string | null;
   };
+  twoFactorRequirement?: {
+    required: boolean;
+    enabled: boolean;
+    exempt: boolean;
+    bypassUntil: string | null;
+    isCompliant: boolean;
+    tier: string;
+  };
   error?: string;
   success?: string;
 }
 
 export function getSettingsPageHTML(options: SettingsPageOptions): string {
-  const { authBaseUrl, user, error, success } = options;
+  const { authBaseUrl, user, error, success, twoFactorRequirement } = options;
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -477,6 +485,16 @@ export function getSettingsPageHTML(options: SettingsPageOptions): string {
         Add an extra layer of security using an authenticator app like Google Authenticator or Authy.
       </p>
 
+      ${twoFactorRequirement?.required && !twoFactorRequirement?.enabled && !twoFactorRequirement?.exempt ? `
+      <div class="message ${twoFactorRequirement.bypassUntil ? 'message-success' : 'message-error'}" style="margin-bottom: 16px;">
+        ${twoFactorRequirement.bypassUntil ? `
+          <strong>2FA Required</strong> - Your ${escapeHtml(twoFactorRequirement.tier)} subscription requires 2FA. You have until ${new Date(twoFactorRequirement.bypassUntil).toLocaleDateString()} to enable it.
+        ` : `
+          <strong>2FA Required</strong> - Your ${escapeHtml(twoFactorRequirement.tier)} subscription requires 2FA to be enabled. Please set up 2FA now to maintain access.
+        `}
+      </div>
+      ` : ''}
+
       <div id="2fa-status">
         <!-- 2FA status will be loaded here -->
       </div>
@@ -500,9 +518,15 @@ export function getSettingsPageHTML(options: SettingsPageOptions): string {
           <button id="view-backup-codes" class="btn">
             View Backup Codes
           </button>
+          ${twoFactorRequirement?.required && !twoFactorRequirement?.exempt ? `
+          <button id="disable-2fa" class="btn btn-danger" disabled title="2FA is required for your subscription tier">
+            Disable 2FA
+          </button>
+          ` : `
           <button id="disable-2fa" class="btn btn-danger">
             Disable 2FA
           </button>
+          `}
         </div>
       </div>
     </div>

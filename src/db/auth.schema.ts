@@ -207,6 +207,9 @@ export const userSubscriptions = sqliteTable('user_subscriptions', {
   billingPeriodEnd: text('billing_period_end'),
   customDomain: text('custom_domain'),
   customDomainVerified: integer('custom_domain_verified').default(0),
+  // 2FA requirement fields for premium tiers
+  twoFactorExempt: integer('two_factor_exempt').default(0), // Admin override
+  twoFactorRequiredBypassUntil: text('two_factor_required_bypass_until'), // Temporary bypass
   createdAt: text('created_at').default('CURRENT_TIMESTAMP'),
   updatedAt: text('updated_at').default('CURRENT_TIMESTAMP'),
 });

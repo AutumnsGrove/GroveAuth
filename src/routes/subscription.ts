@@ -13,6 +13,7 @@ import {
   setPostCount,
   updateSubscriptionTier,
   getSubscriptionStatus,
+  getTwoFactorRequirementStatus,
 } from '../db/queries.js';
 import { verifyAccessToken } from '../services/jwt.js';
 import { createDbSession } from '../db/session.js';
@@ -180,6 +181,49 @@ subscription.put('/:userId/tier', async (c) => {
   return c.json({
     subscription: updatedSub,
     status,
+  });
+});
+
+/**
+ * GET /subscription/2fa-required - Check if 2FA is required for current user's tier
+ * Returns the user's 2FA requirement status including compliance state
+ */
+subscription.get('/2fa-required', async (c) => {
+  const payload = await verifyBearerToken(c);
+  if (!payload) {
+    return c.json({ error: 'unauthorized', error_description: 'Missing or invalid token' }, 401);
+  }
+
+  const db = createDbSession(c.env);
+  const status = await getTwoFactorRequirementStatus(db, payload.sub);
+
+  return c.json({
+    twoFactorStatus: {
+      ...status,
+      bypassUntil: status.bypassUntil?.toISOString() || null,
+    },
+  });
+});
+
+/**
+ * GET /subscription/:userId/2fa-required - Check if 2FA is required for a specific user's tier
+ */
+subscription.get('/:userId/2fa-required', async (c) => {
+  const payload = await verifyBearerToken(c);
+  if (!payload) {
+    return c.json({ error: 'unauthorized', error_description: 'Missing or invalid token' }, 401);
+  }
+
+  const db = createDbSession(c.env);
+  const userId = c.req.param('userId');
+  const status = await getTwoFactorRequirementStatus(db, userId);
+
+  return c.json({
+    userId,
+    twoFactorStatus: {
+      ...status,
+      bypassUntil: status.bypassUntil?.toISOString() || null,
+    },
   });
 });
 

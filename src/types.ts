@@ -267,8 +267,20 @@ export interface UserSubscription {
   billing_period_end: string | null;
   custom_domain: string | null;
   custom_domain_verified: number;
+  two_factor_exempt: number; // 0 or 1 - admin override for 2FA requirement
+  two_factor_required_bypass_until: string | null; // temporary bypass expiry (ISO date)
   created_at: string;
   updated_at: string;
+}
+
+// Tiers that require 2FA to be enabled
+export const TIERS_REQUIRING_2FA: SubscriptionTier[] = ['evergreen', 'canopy', 'platform'];
+
+/**
+ * Check if a subscription tier requires 2FA
+ */
+export function tierRequires2FA(tier: SubscriptionTier): boolean {
+  return TIERS_REQUIRING_2FA.includes(tier);
 }
 
 export interface SubscriptionAuditLog {

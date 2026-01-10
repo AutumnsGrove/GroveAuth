@@ -140,12 +140,18 @@ app.get('/', (c) => {
         canPost: 'GET /subscription/:userId/can-post',
         updatePostCount: 'POST /subscription/:userId/post-count',
         updateTier: 'PUT /subscription/:userId/tier',
+        twoFactorRequired: 'GET /subscription/2fa-required',
+        twoFactorRequiredByUser: 'GET /subscription/:userId/2fa-required',
       },
       admin: {
         stats: 'GET /admin/stats',
         users: 'GET /admin/users',
         auditLog: 'GET /admin/audit-log',
         clients: 'GET /admin/clients',
+        user2faStatus: 'GET /admin/users/:userId/2fa-status',
+        set2faExempt: 'POST /admin/users/:userId/2fa-exempt',
+        set2faBypass: 'POST /admin/users/:userId/2fa-bypass',
+        clear2faBypass: 'DELETE /admin/users/:userId/2fa-bypass',
       },
       session: {
         validate: 'POST /session/validate',

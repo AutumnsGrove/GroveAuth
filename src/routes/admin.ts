@@ -11,6 +11,10 @@ import {
   getAllUsers,
   getAuditLogs,
   getAllClients,
+  getTwoFactorRequirementStatus,
+  setTwoFactorExemption,
+  setTwoFactorBypass,
+  clearTwoFactorBypass,
 } from '../db/queries.js';
 import { verifyAccessToken } from '../services/jwt.js';
 import { createDbSession } from '../db/session.js';
@@ -117,6 +121,127 @@ admin.get('/clients', async (c) => {
   }));
 
   return c.json({ clients: safeClients });
+});
+
+// ==================== Two-Factor Authentication Management ====================
+
+/**
+ * GET /admin/users/:userId/2fa-status - Get user's 2FA requirement status
+ */
+admin.get('/users/:userId/2fa-status', async (c) => {
+  const db = createDbSession(c.env);
+  const userId = c.req.param('userId');
+
+  const status = await getTwoFactorRequirementStatus(db, userId);
+
+  return c.json({
+    userId,
+    twoFactorStatus: {
+      ...status,
+      bypassUntil: status.bypassUntil?.toISOString() || null,
+    },
+  });
+});
+
+/**
+ * POST /admin/users/:userId/2fa-exempt - Set 2FA exemption for a user
+ * Body: { exempt: boolean }
+ *
+ * Use this to override 2FA requirement for users who are locked out.
+ */
+admin.post('/users/:userId/2fa-exempt', async (c) => {
+  const db = createDbSession(c.env);
+  const userId = c.req.param('userId');
+
+  let body: { exempt?: boolean };
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json({ error: 'invalid_request', error_description: 'Invalid JSON body' }, 400);
+  }
+
+  if (typeof body.exempt !== 'boolean') {
+    return c.json({
+      error: 'invalid_request',
+      error_description: 'Body must contain { exempt: boolean }',
+    }, 400);
+  }
+
+  await setTwoFactorExemption(db, userId, body.exempt);
+  const status = await getTwoFactorRequirementStatus(db, userId);
+
+  console.log(`[Admin] Set 2FA exemption for user ${userId} to ${body.exempt}`);
+
+  return c.json({
+    userId,
+    exempt: body.exempt,
+    twoFactorStatus: {
+      ...status,
+      bypassUntil: status.bypassUntil?.toISOString() || null,
+    },
+  });
+});
+
+/**
+ * POST /admin/users/:userId/2fa-bypass - Set temporary 2FA bypass for a user
+ * Body: { hours: number } - Number of hours for bypass (default 24, max 168 = 1 week)
+ *
+ * Use this to give users time to set up 2FA after being locked out.
+ */
+admin.post('/users/:userId/2fa-bypass', async (c) => {
+  const db = createDbSession(c.env);
+  const userId = c.req.param('userId');
+
+  let body: { hours?: number };
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json({ error: 'invalid_request', error_description: 'Invalid JSON body' }, 400);
+  }
+
+  const hours = body.hours ?? 24;
+  if (typeof hours !== 'number' || hours < 1 || hours > 168) {
+    return c.json({
+      error: 'invalid_request',
+      error_description: 'Body must contain { hours: number } between 1 and 168',
+    }, 400);
+  }
+
+  const bypassUntil = await setTwoFactorBypass(db, userId, hours);
+  const status = await getTwoFactorRequirementStatus(db, userId);
+
+  console.log(`[Admin] Set ${hours}-hour 2FA bypass for user ${userId} until ${bypassUntil.toISOString()}`);
+
+  return c.json({
+    userId,
+    bypassUntil: bypassUntil.toISOString(),
+    twoFactorStatus: {
+      ...status,
+      bypassUntil: status.bypassUntil?.toISOString() || null,
+    },
+  });
+});
+
+/**
+ * DELETE /admin/users/:userId/2fa-bypass - Clear 2FA bypass for a user
+ */
+admin.delete('/users/:userId/2fa-bypass', async (c) => {
+  const db = createDbSession(c.env);
+  const userId = c.req.param('userId');
+
+  await clearTwoFactorBypass(db, userId);
+  const status = await getTwoFactorRequirementStatus(db, userId);
+
+  console.log(`[Admin] Cleared 2FA bypass for user ${userId}`);
+
+  return c.json({
+    userId,
+    bypassUntil: null,
+    twoFactorStatus: {
+      ...status,
+      bypassUntil: null,
+    },
+  });
 });
 
 export default admin;

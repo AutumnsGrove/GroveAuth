@@ -23,7 +23,7 @@ import type {
   AdminStats,
   D1DatabaseOrSession,
 } from '../types.js';
-import { TIER_POST_LIMITS, ADMIN_EMAILS } from '../types.js';
+import { TIER_POST_LIMITS, ADMIN_EMAILS, tierRequires2FA } from '../types.js';
 import { generateUUID } from '../utils/crypto.js';
 
 // ==================== Clients ====================
@@ -608,7 +608,7 @@ export async function updateSubscriptionTier(db: D1DatabaseOrSession, userId: st
   const subscription = await getUserSubscription(db, userId);
   if (!subscription) return null;
 
-  const oldTier = subscription.tier;
+  const oldTier = subscription.tier as SubscriptionTier;
   const newPostLimit = TIER_POST_LIMITS[newTier];
   const now = new Date().toISOString();
 
@@ -618,9 +618,22 @@ export async function updateSubscriptionTier(db: D1DatabaseOrSession, userId: st
     graceStart = null;
   }
 
+  // If upgrading to a tier that requires 2FA, grant a 72-hour bypass to set it up
+  // (only if the old tier didn't require 2FA and new tier does)
+  let twoFactorBypassUntil = subscription.two_factor_required_bypass_until;
+  const oldTierRequired2FA = tierRequires2FA(oldTier);
+  const newTierRequires2FA = tierRequires2FA(newTier);
+
+  if (!oldTierRequired2FA && newTierRequires2FA) {
+    // Grant 72-hour bypass for setting up 2FA after tier upgrade
+    const bypassDate = new Date(Date.now() + 72 * 60 * 60 * 1000);
+    twoFactorBypassUntil = bypassDate.toISOString();
+    console.log(`[Subscription] Tier upgrade to ${newTier} requires 2FA - granting 72-hour bypass until ${twoFactorBypassUntil}`);
+  }
+
   await db.prepare(
-    `UPDATE user_subscriptions SET tier = ?, post_limit = ?, grace_period_start = ?, updated_at = ? WHERE user_id = ?`
-  ).bind(newTier, newPostLimit, graceStart, now, userId).run();
+    `UPDATE user_subscriptions SET tier = ?, post_limit = ?, grace_period_start = ?, two_factor_required_bypass_until = ?, updated_at = ? WHERE user_id = ?`
+  ).bind(newTier, newPostLimit, graceStart, twoFactorBypassUntil, now, userId).run();
 
   // Determine event type
   const tierOrder: Record<SubscriptionTier, number> = { seedling: 0, sapling: 1, evergreen: 2, canopy: 3, platform: 4 };
@@ -630,7 +643,7 @@ export async function updateSubscriptionTier(db: D1DatabaseOrSession, userId: st
     user_id: userId,
     event_type: eventType,
     old_value: JSON.stringify({ tier: oldTier, post_limit: subscription.post_limit }),
-    new_value: JSON.stringify({ tier: newTier, post_limit: newPostLimit }),
+    new_value: JSON.stringify({ tier: newTier, post_limit: newPostLimit, twoFactorBypassUntil }),
   });
 
   return getUserSubscription(db, userId);
@@ -844,4 +857,111 @@ export async function getAuditLogs(
 
   const result = await db.prepare(query).bind(...params).all<AuditLog>();
   return result.results || [];
+}
+
+// ==================== Two-Factor Authentication Requirements ====================
+
+export interface TwoFactorRequirementStatus {
+  required: boolean;
+  enabled: boolean;
+  exempt: boolean;
+  bypassUntil: Date | null;
+  isCompliant: boolean;
+  tier: SubscriptionTier;
+}
+
+/**
+ * Check if a user has 2FA enabled via Better Auth tables
+ */
+export async function isUser2FAEnabled(db: D1DatabaseOrSession, userId: string): Promise<boolean> {
+  const result = await db.prepare(
+    `SELECT enabled FROM ba_two_factor WHERE user_id = ? AND enabled = 1`
+  ).bind(userId).first<{ enabled: number }>();
+  return result?.enabled === 1;
+}
+
+/**
+ * Check the 2FA requirement status for a user based on their subscription tier
+ */
+export async function getTwoFactorRequirementStatus(
+  db: D1DatabaseOrSession,
+  userId: string
+): Promise<TwoFactorRequirementStatus> {
+  // Get subscription
+  const subscription = await getUserSubscription(db, userId);
+  const tier: SubscriptionTier = (subscription?.tier as SubscriptionTier) || 'seedling';
+
+  // Check if tier requires 2FA
+  const required = tierRequires2FA(tier);
+
+  // Check if 2FA is enabled
+  const enabled = await isUser2FAEnabled(db, userId);
+
+  // Check exemption status
+  const exempt = subscription?.two_factor_exempt === 1;
+
+  // Check temporary bypass
+  let bypassUntil: Date | null = null;
+  if (subscription?.two_factor_required_bypass_until) {
+    const bypassDate = new Date(subscription.two_factor_required_bypass_until);
+    if (bypassDate > new Date()) {
+      bypassUntil = bypassDate;
+    }
+  }
+
+  // User is compliant if:
+  // - 2FA is not required for their tier, OR
+  // - 2FA is enabled, OR
+  // - User is exempt, OR
+  // - User has active temporary bypass
+  const isCompliant = !required || enabled || exempt || bypassUntil !== null;
+
+  return {
+    required,
+    enabled,
+    exempt,
+    bypassUntil,
+    isCompliant,
+    tier,
+  };
+}
+
+/**
+ * Set 2FA exemption for a user (admin override for lockouts)
+ */
+export async function setTwoFactorExemption(
+  db: D1DatabaseOrSession,
+  userId: string,
+  exempt: boolean
+): Promise<void> {
+  const now = new Date().toISOString();
+  await db.prepare(
+    `UPDATE user_subscriptions SET two_factor_exempt = ?, updated_at = ? WHERE user_id = ?`
+  ).bind(exempt ? 1 : 0, now, userId).run();
+}
+
+/**
+ * Set a temporary 2FA bypass for a user (e.g., 24 hours after tier upgrade)
+ */
+export async function setTwoFactorBypass(
+  db: D1DatabaseOrSession,
+  userId: string,
+  bypassHours: number
+): Promise<Date> {
+  const bypassUntil = new Date(Date.now() + bypassHours * 60 * 60 * 1000);
+  const now = new Date().toISOString();
+  await db.prepare(
+    `UPDATE user_subscriptions SET two_factor_required_bypass_until = ?, updated_at = ? WHERE user_id = ?`
+  ).bind(bypassUntil.toISOString(), now, userId).run();
+  return bypassUntil;
+}
+
+/**
+ * Clear 2FA bypass for a user
+ */
+export async function clearTwoFactorBypass(db: D1DatabaseOrSession, userId: string): Promise<void> {
+  const now = new Date().toISOString();
+  await db.prepare(
+    `UPDATE user_subscriptions SET two_factor_required_bypass_until = NULL, updated_at = ? WHERE user_id = ?`
+  ).bind(now, userId).run();
 }

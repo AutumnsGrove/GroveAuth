@@ -36,6 +36,8 @@ export interface Env {
   JWT_PUBLIC_KEY: string;
   GOOGLE_CLIENT_ID: string;
   GOOGLE_CLIENT_SECRET: string;
+  DISCORD_CLIENT_ID: string;
+  DISCORD_CLIENT_SECRET: string;
   RESEND_API_KEY: string;
   SESSION_SECRET: string;
 }

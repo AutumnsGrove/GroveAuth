@@ -73,8 +73,18 @@
 ## Future Enhancements (Post v1)
 - [x] WebAuthn/Passkey support — Now available via Better Auth!
 - [ ] Session management UI (view/revoke sessions)
-- [ ] Multi-factor authentication
+- [x] Multi-factor authentication (2FA) — Optional TOTP for all users
 - [ ] IP-based access restrictions
+
+## Auth Provider Expansion (Deferred)
+- [ ] **Apple OAuth** — Requires paid Apple Developer Account ($99/year)
+  - Services ID, JWT-based client secret (expires every 6 months)
+  - Add to socialProviders once account is set up
+  - Target: ~1-2 months out
+- [ ] **Required 2FA for Evergreen+ tiers** — Post-launch enhancement
+  - Enforce 2FA for premium subscription tiers
+  - Admin override capability for lockouts
+  - Target: After public launch
 
 ## Code Quality
 - [ ] Add comprehensive unit tests
@@ -83,4 +93,4 @@
 
 ---
 
-*Last updated: 2025-12-12*
+*Last updated: 2026-01-10*

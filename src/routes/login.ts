@@ -73,6 +73,7 @@ login.get('/', async (c) => {
     getLoginPageHTML({
       clientName: client.name,
       params: validParams,
+      authBaseUrl: c.env.AUTH_BASE_URL,
     })
   );
 });

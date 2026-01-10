@@ -10,10 +10,11 @@ interface LoginPageOptions {
   errorDescription?: string;
   clientName?: string;
   params?: LoginParams;
+  authBaseUrl?: string;
 }
 
 export function getLoginPageHTML(options: LoginPageOptions): string {
-  const { error, errorDescription, clientName, params } = options;
+  const { error, errorDescription, clientName, params, authBaseUrl = '' } = options;
 
   // Build OAuth URLs with params
   const buildOAuthUrl = (provider: string) => {
@@ -350,6 +351,23 @@ export function getLoginPageHTML(options: LoginPageOptions): string {
             Continue with Google
           </a>
 
+          <a href="${buildOAuthUrl('discord')}" class="btn" style="background: #5865F2; color: white; border-color: #5865F2;">
+            <svg viewBox="0 0 24 24" fill="currentColor">
+              <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/>
+            </svg>
+            Continue with Discord
+          </a>
+
+          <button id="passkey-signin" class="btn" type="button" style="display: none;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 11c0 1.66-1.34 3-3 3s-3-1.34-3-3 1.34-3 3-3 3 1.34 3 3z"/>
+              <path d="M19 10c1.1 0 2 .9 2 2s-.9 2-2 2-2-.9-2-2 .9-2 2-2z"/>
+              <path d="M19 14v4"/>
+              <path d="M17 18h4"/>
+              <path d="M1 18c0-3.31 2.69-6 6-6h2"/>
+            </svg>
+            Sign in with Passkey
+          </button>
         </div>
 
         <div class="divider"><span>or</span></div>
@@ -405,6 +423,8 @@ export function getLoginPageHTML(options: LoginPageOptions): string {
       state: params.state,
     })};
 
+    const API_BASE = '${authBaseUrl}';
+
     // View switching
     const providerView = document.getElementById('provider-view');
     const magicView = document.getElementById('magic-view');
@@ -412,6 +432,124 @@ export function getLoginPageHTML(options: LoginPageOptions): string {
     const backBtn = document.getElementById('back-to-providers');
     const emailForm = document.getElementById('email-form');
     const codeForm = document.getElementById('code-form');
+
+    // Passkey support detection and sign-in
+    const passkeyBtn = document.getElementById('passkey-signin');
+
+    async function checkPasskeySupport() {
+      if (window.PublicKeyCredential) {
+        try {
+          // Check if conditional UI (autofill) is available
+          const available = await PublicKeyCredential.isConditionalMediationAvailable?.() ||
+                           await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable?.();
+          if (available) {
+            passkeyBtn.style.display = 'flex';
+          }
+        } catch (e) {
+          // WebAuthn available but no platform authenticator
+          passkeyBtn.style.display = 'flex';
+        }
+      }
+    }
+    checkPasskeySupport();
+
+    passkeyBtn.addEventListener('click', async () => {
+      passkeyBtn.classList.add('loading');
+      passkeyBtn.textContent = 'Authenticating...';
+
+      try {
+        // Call Better Auth passkey sign-in endpoint
+        const response = await fetch(API_BASE + '/api/auth/sign-in/passkey', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+        });
+
+        const data = await response.json();
+
+        if (data.options) {
+          // We need to perform the WebAuthn ceremony
+          const credential = await navigator.credentials.get({
+            publicKey: {
+              ...data.options,
+              challenge: base64ToArrayBuffer(data.options.challenge),
+              allowCredentials: data.options.allowCredentials?.map(cred => ({
+                ...cred,
+                id: base64ToArrayBuffer(cred.id),
+              })),
+            },
+          });
+
+          // Send the credential back to complete sign-in
+          const verifyResponse = await fetch(API_BASE + '/api/auth/sign-in/passkey', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({
+              credential: {
+                id: credential.id,
+                rawId: arrayBufferToBase64(credential.rawId),
+                type: credential.type,
+                response: {
+                  clientDataJSON: arrayBufferToBase64(credential.response.clientDataJSON),
+                  authenticatorData: arrayBufferToBase64(credential.response.authenticatorData),
+                  signature: arrayBufferToBase64(credential.response.signature),
+                  userHandle: credential.response.userHandle ? arrayBufferToBase64(credential.response.userHandle) : null,
+                },
+              },
+            }),
+          });
+
+          const verifyData = await verifyResponse.json();
+
+          if (verifyResponse.ok && verifyData.user) {
+            // Success - redirect to the callback
+            window.location.href = params.redirect_uri + '?state=' + encodeURIComponent(params.state);
+          } else {
+            throw new Error(verifyData.message || 'Passkey verification failed');
+          }
+        } else if (response.ok && data.user) {
+          // Already signed in
+          window.location.href = params.redirect_uri + '?state=' + encodeURIComponent(params.state);
+        } else {
+          throw new Error(data.message || 'Failed to sign in with passkey');
+        }
+      } catch (err) {
+        console.error('Passkey error:', err);
+        alert(err.name === 'NotAllowedError' ? 'Passkey authentication was cancelled.' :
+              err.message || 'Failed to sign in with passkey. Please try another method.');
+        passkeyBtn.classList.remove('loading');
+        passkeyBtn.innerHTML = \`
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 11c0 1.66-1.34 3-3 3s-3-1.34-3-3 1.34-3 3-3 3 1.34 3 3z"/>
+            <path d="M19 10c1.1 0 2 .9 2 2s-.9 2-2 2-2-.9-2-2 .9-2 2-2z"/>
+            <path d="M19 14v4"/>
+            <path d="M17 18h4"/>
+            <path d="M1 18c0-3.31 2.69-6 6-6h2"/>
+          </svg>
+          Sign in with Passkey
+        \`;
+      }
+    });
+
+    // Base64 utility functions for WebAuthn
+    function base64ToArrayBuffer(base64) {
+      const binaryString = atob(base64.replace(/-/g, '+').replace(/_/g, '/'));
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+      return bytes.buffer;
+    }
+
+    function arrayBufferToBase64(buffer) {
+      const bytes = new Uint8Array(buffer);
+      let binary = '';
+      for (let i = 0; i < bytes.length; i++) {
+        binary += String.fromCharCode(bytes[i]);
+      }
+      return btoa(binary).replace(/\\+/g, '-').replace(/\\//g, '_').replace(/=/g, '');
+    }
 
     showMagicBtn.addEventListener('click', () => {
       providerView.classList.add('hidden');

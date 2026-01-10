@@ -23,6 +23,7 @@ import session from './routes/session.js';
 import minecraft from './routes/minecraft.js';
 import cdn from './routes/cdn.js';
 import betterAuth from './routes/betterAuth.js';
+import settings from './routes/settings.js';
 
 // Create the main Hono app
 const app = new Hono<{ Bindings: Env }>();
@@ -81,6 +82,7 @@ app.route('/admin', admin);
 app.route('/session', session);
 app.route('/minecraft', minecraft);
 app.route('/cdn', cdn);
+app.route('/settings', settings);
 
 // Better Auth routes (new auth system)
 // Handles: /api/auth/sign-in/*, /api/auth/sign-out, /api/auth/session, etc.
@@ -101,9 +103,19 @@ app.get('/', (c) => {
         signInPasskey: 'POST /api/auth/sign-in/passkey',
         signOut: 'POST /api/auth/sign-out',
         session: 'GET /api/auth/session',
-        passkeyRegister: 'POST /api/auth/passkey/register',
+        passkeyRegister: 'POST /api/auth/passkey/generate-register-options',
+        passkeyVerify: 'POST /api/auth/passkey/verify-registration',
+        passkeyList: 'GET /api/auth/passkey/list-user-passkeys',
+        passkeyDelete: 'POST /api/auth/passkey/delete-passkey',
+        twoFactorEnable: 'POST /api/auth/two-factor/enable',
+        twoFactorVerify: 'POST /api/auth/two-factor/verify-totp',
+        twoFactorDisable: 'POST /api/auth/two-factor/disable',
+        twoFactorStatus: 'GET /api/auth/two-factor/get-status',
         callbackGoogle: 'GET /api/auth/callback/google',
+        callbackDiscord: 'GET /api/auth/callback/discord',
       },
+      // Account settings
+      settings: 'GET /settings',
       // Legacy endpoints (maintained for backwards compatibility)
       login: 'GET /login',
       oauth: {

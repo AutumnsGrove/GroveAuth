@@ -23,7 +23,7 @@
  */
 
 import { createAuthClient } from 'better-auth/client';
-import { magicLinkClient } from 'better-auth/client/plugins';
+import { magicLinkClient, twoFactorClient as twoFactorClientPlugin } from 'better-auth/client/plugins';
 import { passkeyClient } from '@better-auth/passkey/client';
 
 // Auth base URL - configurable for different environments
@@ -43,6 +43,9 @@ export const authClient = createAuthClient({
 
     // Passkey (WebAuthn) authentication
     passkeyClient(),
+
+    // Two-factor authentication
+    twoFactorClientPlugin(),
   ],
 });
 
@@ -61,11 +64,11 @@ export async function signInWithGoogle(options?: { callbackURL?: string }) {
 }
 
 /**
- * Sign in with GitHub OAuth
+ * Sign in with Discord OAuth
  */
-export async function signInWithGitHub(options?: { callbackURL?: string }) {
+export async function signInWithDiscord(options?: { callbackURL?: string }) {
   return authClient.signIn.social({
-    provider: 'github',
+    provider: 'discord',
     callbackURL: options?.callbackURL || '/',
   });
 }
@@ -144,5 +147,50 @@ export async function listPasskeys() {
 export async function deletePasskey(id: string) {
   return authClient.passkey.deletePasskey({ id });
 }
+
+// =============================================================================
+// TWO-FACTOR AUTHENTICATION
+// =============================================================================
+
+/**
+ * Enable 2FA - generates TOTP secret and returns setup info
+ * Note: For OAuth users without password, pass empty string
+ */
+export async function enableTwoFactor(password = '') {
+  return authClient.twoFactor.enable({ password });
+}
+
+/**
+ * Verify 2FA setup with a TOTP code
+ */
+export async function verifyTwoFactorSetup(code: string) {
+  return authClient.twoFactor.verifyTotp({ code });
+}
+
+/**
+ * Disable 2FA - requires password (empty for OAuth users)
+ */
+export async function disableTwoFactor(password = '') {
+  return authClient.twoFactor.disable({ password });
+}
+
+/**
+ * Verify 2FA during login
+ */
+export async function verifyTwoFactor(code: string) {
+  return authClient.twoFactor.verifyTotp({ code });
+}
+
+/**
+ * Generate new backup codes
+ */
+export async function generateBackupCodes(password = '') {
+  return authClient.twoFactor.generateBackupCodes({ password });
+}
+
+/**
+ * Get the raw 2FA client for direct access to all methods
+ */
+export const twoFactorClient = authClient.twoFactor;
 
 export default authClient;

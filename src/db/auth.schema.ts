@@ -130,6 +130,23 @@ export const baPasskey = sqliteTable('ba_passkey', {
   aaguid: text('aaguid'), // Authenticator attestation GUID
 });
 
+/**
+ * ba_two_factor - Two-factor authentication secrets
+ *
+ * Stores TOTP secrets and backup codes for 2FA.
+ */
+export const baTwoFactor = sqliteTable('ba_two_factor', {
+  id: text('id').primaryKey(),
+  userId: text('user_id')
+    .notNull()
+    .references(() => baUser.id, { onDelete: 'cascade' }),
+  secret: text('secret').notNull(), // TOTP secret (base32 encoded)
+  backupCodes: text('backup_codes'), // JSON array of hashed backup codes
+  enabled: integer('enabled', { mode: 'boolean' }).default(false),
+  createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
+  updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
+});
+
 // =============================================================================
 // GROVE-SPECIFIC TABLES (preserved from existing schema)
 // =============================================================================

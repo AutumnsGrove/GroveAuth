@@ -13,7 +13,7 @@
 
 import { betterAuth } from 'better-auth';
 import { withCloudflare } from 'better-auth-cloudflare';
-import { magicLink } from 'better-auth/plugins';
+import { magicLink, twoFactor } from 'better-auth/plugins';
 import { passkey } from '@better-auth/passkey';
 import { drizzle } from 'drizzle-orm/d1';
 import type { Env } from '../types.js';
@@ -209,6 +209,11 @@ export function createAuth(env: Env) {
         clientSecret: env.GOOGLE_CLIENT_SECRET,
         scope: ['openid', 'email', 'profile'],
       },
+      discord: {
+        clientId: env.DISCORD_CLIENT_ID,
+        clientSecret: env.DISCORD_CLIENT_SECRET,
+        scope: ['identify', 'email'],
+      },
     },
 
     // Plugins
@@ -259,6 +264,19 @@ export function createAuth(env: Env) {
         rpName: 'Heartwood',
         origin: env.AUTH_BASE_URL,
       }),
+
+      // Two-factor authentication (TOTP)
+      twoFactor({
+        issuer: 'Heartwood',
+        totpOptions: {
+          digits: 6,
+          period: 30,
+        },
+        backupCodeOptions: {
+          length: 10,
+          count: 10,
+        },
+      }),
     ],
 
     // Hooks for Grove-specific logic
@@ -291,7 +309,7 @@ export function createAuth(env: Env) {
     account: {
       accountLinking: {
         enabled: true,
-        trustedProviders: ['google'],
+        trustedProviders: ['google', 'discord'],
       },
     },
   });

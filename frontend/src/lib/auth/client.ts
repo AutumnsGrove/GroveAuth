@@ -47,20 +47,6 @@ export async function signInWithGoogle(options?: {
 }
 
 /**
- * Sign in with GitHub OAuth
- */
-export async function signInWithGitHub(options?: {
-  callbackURL?: string;
-  errorCallbackURL?: string;
-}) {
-  return auth.signIn.social({
-    provider: 'github',
-    callbackURL: options?.callbackURL || '/',
-    errorCallbackURL: options?.errorCallbackURL || '/login?error=oauth_failed',
-  });
-}
-
-/**
  * Sign in with magic link (email)
  * Sends a magic link to the user's email
  */

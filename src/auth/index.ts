@@ -2,7 +2,7 @@
  * Better Auth Configuration for Heartwood
  *
  * This configuration integrates Better Auth with Cloudflare's D1 and KV,
- * providing OAuth (Google, GitHub), magic link, and passkey authentication.
+ * providing OAuth (Google), magic link, and passkey authentication.
  *
  * Grove-specific features:
  * - Email allowlist enforcement (admin-only access)
@@ -209,11 +209,6 @@ export function createAuth(env: Env) {
         clientSecret: env.GOOGLE_CLIENT_SECRET,
         scope: ['openid', 'email', 'profile'],
       },
-      github: {
-        clientId: env.GITHUB_CLIENT_ID,
-        clientSecret: env.GITHUB_CLIENT_SECRET,
-        scope: ['user:email', 'read:user'],
-      },
     },
 
     // Plugins
@@ -296,7 +291,7 @@ export function createAuth(env: Env) {
     account: {
       accountLinking: {
         enabled: true,
-        trustedProviders: ['google', 'github'],
+        trustedProviders: ['google'],
       },
     },
   });

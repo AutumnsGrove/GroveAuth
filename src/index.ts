@@ -13,7 +13,6 @@ import { corsMiddleware } from './middleware/cors.js';
 // Routes
 import login from './routes/login.js';
 import google from './routes/oauth/google.js';
-import github from './routes/oauth/github.js';
 import magic from './routes/magic.js';
 import tokenRoutes from './routes/token.js';
 import verifyRoutes from './routes/verify.js';
@@ -35,7 +34,6 @@ app.use('*', corsMiddleware);
 // Mount routes
 app.route('/login', login);
 app.route('/oauth/google', google);
-app.route('/oauth/github', github);
 app.route('/magic', magic);
 app.route('/token', tokenRoutes);
 
@@ -105,13 +103,11 @@ app.get('/', (c) => {
         session: 'GET /api/auth/session',
         passkeyRegister: 'POST /api/auth/passkey/register',
         callbackGoogle: 'GET /api/auth/callback/google',
-        callbackGithub: 'GET /api/auth/callback/github',
       },
       // Legacy endpoints (maintained for backwards compatibility)
       login: 'GET /login',
       oauth: {
         google: 'GET /oauth/google',
-        github: 'GET /oauth/github',
       },
       magic: {
         send: 'POST /magic/send',

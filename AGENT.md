@@ -19,7 +19,7 @@
 
 ## Project Purpose
 
-Heartwood (internally: GroveAuth) is a centralized authentication service for all AutumnsGrove properties. It handles OAuth (Google, GitHub) and Magic Code (email) authentication, issuing JWT tokens that client sites can verify. Runs on Cloudflare Workers with D1 database.
+Heartwood (internally: GroveAuth) is a centralized authentication service for all AutumnsGrove properties. It handles OAuth (Google) and Magic Link (email) authentication, issuing JWT tokens that client sites can verify. Runs on Cloudflare Workers with D1 database.
 
 ## Tech Stack
 
@@ -32,7 +32,7 @@ Heartwood (internally: GroveAuth) is a centralized authentication service for al
 
 ## Architecture Notes
 
-- **OAuth 2.0 Authorization Code Flow with PKCE** for Google/GitHub
+- **OAuth 2.0 Authorization Code Flow with PKCE** for Google
 - **Magic Code** (6-digit email codes via Resend) as fallback
 - **Admin-only access** - allowlist-based, no public registration
 - **JWT tokens** signed with RS256 (1hr access, 30d refresh)
@@ -121,8 +121,6 @@ docs: Update API documentation
 - `JWT_PUBLIC_KEY` - RSA public key (PEM format)
 - `GOOGLE_CLIENT_ID` - Google OAuth client ID
 - `GOOGLE_CLIENT_SECRET` - Google OAuth client secret
-- `GITHUB_CLIENT_ID` - GitHub OAuth app client ID
-- `GITHUB_CLIENT_SECRET` - GitHub OAuth app secret
 - `RESEND_API_KEY` - Resend API key for email
 
 ### Database Setup
@@ -176,7 +174,6 @@ rm private.pem public.pem
 |----------|---------|
 | `GET /login` | Login page with provider selection |
 | `GET /oauth/google` | Initiate Google OAuth |
-| `GET /oauth/github` | Initiate GitHub OAuth |
 | `POST /magic/send` | Send magic code email |
 | `POST /magic/verify` | Verify magic code |
 | `POST /token` | Exchange code for tokens |

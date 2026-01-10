@@ -59,8 +59,6 @@ id = "7cfbd9e67125405994b49ecf80a372a4"
 # - JWT_PUBLIC_KEY: RSA public key for verifying JWTs (PEM format)
 # - GOOGLE_CLIENT_ID: Google OAuth client ID
 # - GOOGLE_CLIENT_SECRET: Google OAuth client secret
-# - GITHUB_CLIENT_ID: GitHub OAuth client ID
-# - GITHUB_CLIENT_SECRET: GitHub OAuth client secret
 # - RESEND_API_KEY: Resend API key for sending emails
 # - SESSION_SECRET: Secret for signing session cookies (32+ bytes)
 # - BETTER_AUTH_SECRET: Secret for Better Auth (can reuse SESSION_SECRET)

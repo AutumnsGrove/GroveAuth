@@ -19,12 +19,10 @@ export const config = {
       passkeyRegister: '/api/auth/passkey/register',
       passkeyList: '/api/auth/passkey/list',
       callbackGoogle: '/api/auth/callback/google',
-      callbackGithub: '/api/auth/callback/github',
     },
     // Legacy endpoints (maintained for backwards compatibility)
     login: '/login',
     oauthGoogle: '/oauth/google',
-    oauthGithub: '/oauth/github',
     magicSend: '/magic/send',
     magicVerify: '/magic/verify',
     token: '/token',

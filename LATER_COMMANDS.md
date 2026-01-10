@@ -57,8 +57,6 @@ wrangler secret put JWT_PUBLIC_KEY
 # OAuth Credentials
 wrangler secret put GOOGLE_CLIENT_ID
 wrangler secret put GOOGLE_CLIENT_SECRET
-wrangler secret put GITHUB_CLIENT_ID
-wrangler secret put GITHUB_CLIENT_SECRET
 
 # Email Service
 wrangler secret put RESEND_API_KEY
@@ -153,12 +151,6 @@ curl https://auth.grove.place/
 4. Create OAuth 2.0 Client ID (Web application)
 5. Add authorized redirect URI: `https://auth.grove.place/oauth/google/callback`
 6. Copy Client ID and Client Secret
-
-### GitHub OAuth
-1. Go to https://github.com/settings/developers
-2. Create New OAuth App
-3. Set Authorization callback URL: `https://auth.grove.place/oauth/github/callback`
-4. Copy Client ID and Client Secret
 
 ---
 

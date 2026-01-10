@@ -36,8 +36,6 @@ export interface Env {
   JWT_PUBLIC_KEY: string;
   GOOGLE_CLIENT_ID: string;
   GOOGLE_CLIENT_SECRET: string;
-  GITHUB_CLIENT_ID: string;
-  GITHUB_CLIENT_SECRET: string;
   RESEND_API_KEY: string;
   SESSION_SECRET: string;
 }
@@ -130,7 +128,7 @@ export interface AuditLog {
 }
 
 // Enums
-export type AuthProvider = 'google' | 'github' | 'magic_code';
+export type AuthProvider = 'google' | 'magic_code';
 
 export type AuditEventType =
   | 'login'
@@ -220,25 +218,6 @@ export interface GoogleUserInfo {
   picture: string;
 }
 
-export interface GitHubTokenResponse {
-  access_token: string;
-  token_type: string;
-  scope: string;
-}
-
-export interface GitHubUserInfo {
-  id: number;
-  login: string;
-  name: string | null;
-  email: string | null;
-  avatar_url: string;
-}
-
-export interface GitHubEmail {
-  email: string;
-  primary: boolean;
-  verified: boolean;
-}
 
 // JWT Payload
 export interface JWTPayload {

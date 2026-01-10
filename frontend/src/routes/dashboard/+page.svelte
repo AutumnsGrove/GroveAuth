@@ -23,7 +23,6 @@
   // Provider display names
   const providerNames: Record<string, string> = {
     google: 'Google',
-    github: 'GitHub',
     magic_code: 'Magic Code',
   };
 

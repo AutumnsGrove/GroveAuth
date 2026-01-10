@@ -24,10 +24,6 @@ export const GOOGLE_AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth';
 export const GOOGLE_TOKEN_URL = 'https://oauth2.googleapis.com/token';
 export const GOOGLE_USERINFO_URL = 'https://www.googleapis.com/oauth2/v2/userinfo';
 
-export const GITHUB_AUTH_URL = 'https://github.com/login/oauth/authorize';
-export const GITHUB_TOKEN_URL = 'https://github.com/login/oauth/access_token';
-export const GITHUB_USERINFO_URL = 'https://api.github.com/user';
-export const GITHUB_EMAILS_URL = 'https://api.github.com/user/emails';
 
 // Resend
 export const RESEND_API_URL = 'https://api.resend.com/emails';
@@ -45,7 +41,6 @@ export const SECURITY_HEADERS = {
 
 // Allowed OAuth scopes
 export const GOOGLE_SCOPES = ['openid', 'email', 'profile'];
-export const GITHUB_SCOPES = ['user:email', 'read:user'];
 
 // JWT settings
 export const JWT_ALGORITHM = 'RS256';

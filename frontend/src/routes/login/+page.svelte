@@ -2,13 +2,11 @@
   import { AUTH_API_URL } from '$lib/config';
   import {
     signInWithGoogle,
-    signInWithGitHub,
     signInWithMagicLink,
     signInWithPasskey,
   } from '$lib/auth/client';
   import Logo from '$lib/components/Logo.svelte';
   import GoogleIcon from '$lib/components/GoogleIcon.svelte';
-  import GitHubIcon from '$lib/components/GitHubIcon.svelte';
   import MailIcon from '$lib/components/MailIcon.svelte';
   import { KeyRound } from 'lucide-svelte';
 
@@ -61,25 +59,6 @@
     } catch (error) {
       errorMessage = 'Failed to sign in with Google. Please try again.';
       console.error('Google sign in error:', error);
-      isLoading = false;
-    }
-  }
-
-  // Handle GitHub sign in
-  async function handleGitHubSignIn() {
-    if (isLegacyFlow) {
-      // Use legacy OAuth flow for existing clients
-      window.location.href = buildLegacyOAuthUrl('github');
-      return;
-    }
-
-    isLoading = true;
-    errorMessage = '';
-    try {
-      await signInWithGitHub({ callbackURL, errorCallbackURL });
-    } catch (error) {
-      errorMessage = 'Failed to sign in with GitHub. Please try again.';
-      console.error('GitHub sign in error:', error);
       isLoading = false;
     }
   }
@@ -197,16 +176,6 @@
         >
           <GoogleIcon />
           Continue with Google
-        </button>
-
-        <button
-          type="button"
-          onclick={handleGitHubSignIn}
-          class="btn-provider"
-          disabled={isLoading}
-        >
-          <GitHubIcon />
-          Continue with GitHub
         </button>
 
         {#if !isLegacyFlow}

@@ -49,5 +49,9 @@ export const config = {
     minecraftCommand: '/minecraft/command',
     minecraftSync: '/minecraft/sync',
     minecraftHistory: '/minecraft/history',
+    // Status page endpoints
+    statusIncidents: '/status/incidents',
+    statusComponents: '/status/components',
+    statusScheduled: '/status/scheduled',
   }
 };

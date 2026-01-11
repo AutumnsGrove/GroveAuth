@@ -1,7 +1,7 @@
 <script lang="ts">
   import Logo from '$lib/components/Logo.svelte';
   import { theme } from '$lib/theme';
-  import { Sun, Moon, Server, Smartphone, Cloud } from 'lucide-svelte';
+  import { Sun, Moon, Server, Smartphone, Cloud, Activity } from 'lucide-svelte';
 
   let { data } = $props();
 
@@ -255,6 +255,18 @@
           <div>
             <p class="font-sans text-bark dark:text-gray-100 font-medium">Minecraft Server</p>
             <p class="text-xs text-bark/50 dark:text-gray-400 font-sans">On-demand server management</p>
+          </div>
+        </div>
+      </a>
+
+      <a href="/dashboard/status" class="card p-4 hover:border-grove-400 dark:hover:border-grove-600 transition-colors group">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-lg bg-grove-100 dark:bg-gray-600 flex items-center justify-center group-hover:bg-grove-200 dark:group-hover:bg-gray-500 transition-colors">
+            <Activity size={20} strokeWidth={2} class="text-grove-600 dark:text-grove-400" />
+          </div>
+          <div>
+            <p class="font-sans text-bark dark:text-gray-100 font-medium">Status Management</p>
+            <p class="text-xs text-bark/50 dark:text-gray-400 font-sans">Manage platform incidents & status</p>
           </div>
         </div>
       </a>

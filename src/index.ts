@@ -24,6 +24,7 @@ import minecraft from './routes/minecraft.js';
 import cdn from './routes/cdn.js';
 import betterAuth from './routes/betterAuth.js';
 import settings from './routes/settings.js';
+import status from './routes/status.js';
 
 // Create the main Hono app
 const app = new Hono<{ Bindings: Env }>();
@@ -83,6 +84,7 @@ app.route('/session', session);
 app.route('/minecraft', minecraft);
 app.route('/cdn', cdn);
 app.route('/settings', settings);
+app.route('/status', status);
 
 // Better Auth routes (new auth system)
 // Handles: /api/auth/sign-in/*, /api/auth/sign-out, /api/auth/session, etc.
@@ -169,6 +171,17 @@ app.get('/', (c) => {
         files: 'GET /cdn/files',
         folders: 'GET /cdn/folders',
         delete: 'DELETE /cdn/files/:id',
+      },
+      status: {
+        incidents: 'GET /status/incidents',
+        createIncident: 'POST /status/incidents',
+        incidentDetail: 'GET /status/incidents/:id',
+        addUpdate: 'POST /status/incidents/:id/updates',
+        updateIncident: 'PATCH /status/incidents/:id',
+        components: 'GET /status/components',
+        updateComponent: 'PATCH /status/components/:slug',
+        scheduled: 'GET /status/scheduled',
+        createScheduled: 'POST /status/scheduled',
       },
     },
   });

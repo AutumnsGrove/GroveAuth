@@ -89,8 +89,57 @@
 ## Code Quality
 - [ ] Add comprehensive unit tests
 - [ ] Add integration tests for OAuth flows
-- [ ] Security audit and penetration testing
+- [x] Security audit and penetration testing — **Completed 2026-01-11** (see `docs/security-audit/`)
+
+## Security Audit Follow-up (2026-01-11)
+
+### Critical — Requires Manual Action
+- [ ] **SECRETS-001**: Rotate all client secrets (hashes are in git history)
+  - Generate new secrets for: grove-engine, autumns-grove, amber, plant
+  - Update database directly, notify client app owners
+  - Consider using BFG Repo-Cleaner to remove from git history
+- [ ] **DATA-002**: Encrypt OAuth provider tokens at rest
+  - Create `/src/utils/encryption.ts` with AES-GCM encryption
+  - Add `FIELD_ENCRYPTION_KEY` secret to wrangler
+  - Update Better Auth config to encrypt access_token, refresh_token, id_token
+- [ ] **DATA-003**: Encrypt sensitive data in KV session cache
+  - Either cache only non-PII metadata, or encrypt full session data
+  - Update session retrieval to decrypt
+- [ ] **DATA-004**: Replace SHA-256 token hashing with PBKDF2
+  - Implement PBKDF2 with 100k iterations in `/src/utils/crypto.ts`
+  - Add migration plan for existing hashed secrets
+- [ ] **DO-002**: Add defense-in-depth authorization to SessionDO
+  - Add caller validation to SessionDO fetch handler
+  - Pass caller session header from session routes
+
+### High Priority — Should Complete Soon
+- [ ] **AUTH-008**: Improve cookie parsing (use Hono's built-in parser)
+- [ ] **AUTH-009**: Add cleanup job for expired auth codes
+- [ ] **AUTH-011**: Consider increasing magic codes from 6 to 8 digits
+- [ ] **API-002**: Add rate limiting to Better Auth `/api/auth/*` routes
+- [ ] **API-004**: Add rate limiting to subscription endpoints
+- [ ] **DO-009**: Validate sessionId format as UUID before use
+- [ ] **DO-011**: Implement batched session cleanup in alarm handler
+- [ ] **SECRETS-002**: Move admin emails from source code to environment variable
+
+### Medium Priority — Address Post-Launch
+- [ ] **DATA-010**: Hash IP addresses before storing in audit logs
+- [ ] **DATA-011**: Hash emails in failed_attempts table
+- [ ] **DATA-012**: Implement audit log retention policy (90 days)
+- [ ] **DATA-013**: Hash emails in rate limit keys
+- [ ] **AUTH-012**: Validate code_challenge_method earlier in OAuth flow
+- [ ] **AUTH-013**: Sanitize sensitive info from OAuth error logs
+- [ ] **AUTH-014**: Review internal service OAuth handling consistency
+
+### Low Priority — Address When Convenient
+- [ ] **AUTH-015**: Use generic error messages for all auth code failures
+- [ ] **AUTH-016**: Document session mechanism migration path (SessionDO/JWT/D1)
+- [ ] **AUTH-018**: Add rate limiting to /verify endpoint
+- [ ] **API-009**: Add Content-Type validation to form endpoints
+- [ ] **DATA-016**: Add comments to schema marking sensitive fields
+
+> Full details in `docs/security-audit/REMEDIATION-PLAN.md` and `docs/security-audit/MEDIUM-LOW-FIXES-PLAN.md`
 
 ---
 
-*Last updated: 2026-01-10*
+*Last updated: 2026-01-11*

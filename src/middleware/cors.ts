@@ -30,8 +30,19 @@ export const corsMiddleware: MiddlewareHandler<{ Bindings: Env }> = async (c, ne
 };
 
 /**
+ * Explicitly allowed origins for CORS
+ * These correspond to registered client applications in the Grove ecosystem
+ */
+const ALLOWED_ORIGINS = [
+  'https://heartwood.grove.place',
+  'https://groveengine.grove.place',
+  'https://autumnsgrove.place',
+  'https://amber.grove.place',
+] as const;
+
+/**
  * Get CORS headers for a given origin
- * In production, we validate against registered client origins
+ * Validates against an explicit list of allowed origins
  */
 function getCorsHeaders(origin: string | undefined): Record<string, string> {
   const headers: Record<string, string> = {
@@ -40,13 +51,9 @@ function getCorsHeaders(origin: string | undefined): Record<string, string> {
     'Access-Control-Max-Age': '86400',
   };
 
-  if (origin) {
-    // For now, allow *.grove.place origins
-    // In production, validate against client.allowed_origins
-    if (origin.endsWith('.grove.place') || origin === 'https://autumnsgrove.place') {
-      headers['Access-Control-Allow-Origin'] = origin;
-      headers['Access-Control-Allow-Credentials'] = 'true';
-    }
+  if (origin && ALLOWED_ORIGINS.includes(origin as typeof ALLOWED_ORIGINS[number])) {
+    headers['Access-Control-Allow-Origin'] = origin;
+    headers['Access-Control-Allow-Credentials'] = 'true';
   }
 
   return headers;

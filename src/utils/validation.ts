@@ -75,11 +75,6 @@ export function isValidUrl(url: string): boolean {
   return result.success;
 }
 
-// Sanitize string input (remove potentially dangerous characters)
-export function sanitizeString(input: string): string {
-  return input.replace(/[<>]/g, '').trim();
-}
-
 // Parse URL-encoded form data
 export function parseFormData(body: string): Record<string, string> {
   const params = new URLSearchParams(body);

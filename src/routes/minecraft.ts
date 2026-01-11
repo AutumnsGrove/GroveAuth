@@ -80,21 +80,25 @@ async function proxyToMcControl(
     try {
       data = JSON.parse(text);
     } catch {
-      console.error(`[mc-proxy] Failed to parse JSON response`);
+      // Log details internally for debugging
+      console.error(`[Minecraft Proxy] Invalid response from upstream: ${response.status}`);
+      // Return generic error to client
       return c.json({
-        error: 'proxy_error',
-        error_description: `mc-control returned non-JSON: ${text.substring(0, 200)}`,
-      }, 502);
+        error: 'service_unavailable',
+        error_description: 'Minecraft control service is temporarily unavailable',
+      }, 503);
     }
 
     return c.json(data, response.status);
   } catch (error) {
+    // Log details internally for debugging
     const errorMsg = error instanceof Error ? error.message : String(error);
-    console.error(`[mc-proxy] Fetch error: ${errorMsg}`);
+    console.error(`[Minecraft Proxy] Fetch error: ${errorMsg}`);
+    // Return generic error to client
     return c.json({
-      error: 'proxy_error',
-      error_description: `Failed to communicate with Minecraft control service: ${errorMsg}`,
-    }, 502);
+      error: 'service_unavailable',
+      error_description: 'Minecraft control service is temporarily unavailable',
+    }, 503);
   }
 }
 

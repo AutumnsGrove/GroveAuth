@@ -1,5 +1,4 @@
 import type { D1DatabaseOrSession } from '../types.js';
-import { randomUUID } from 'crypto';
 
 // TypeScript types
 interface Incident {
@@ -139,7 +138,7 @@ export async function createIncident(
 		initialMessage: string;
 	}
 ): Promise<Incident> {
-	const incidentId = `inc_${randomUUID().replace(/-/g, '').slice(0, 12)}`;
+	const incidentId = `inc_${crypto.randomUUID().replace(/-/g, '').slice(0, 12)}`;
 	const slug = slugify(data.title);
 	const now = new Date().toISOString();
 
@@ -165,7 +164,7 @@ export async function createIncident(
 		.run();
 
 	// Insert initial update
-	const updateId = `upd_${randomUUID().replace(/-/g, '').slice(0, 12)}`;
+	const updateId = `upd_${crypto.randomUUID().replace(/-/g, '').slice(0, 12)}`;
 	await db
 		.prepare(
 			`
@@ -222,7 +221,7 @@ export async function addIncidentUpdate(
 	status: string,
 	message: string
 ): Promise<Update> {
-	const updateId = `upd_${randomUUID().replace(/-/g, '').slice(0, 12)}`;
+	const updateId = `upd_${crypto.randomUUID().replace(/-/g, '').slice(0, 12)}`;
 	const now = new Date().toISOString();
 
 	await db
@@ -348,7 +347,7 @@ export async function createScheduledMaintenance(
 		components: string[];
 	}
 ): Promise<ScheduledMaintenance> {
-	const id = `sch_${randomUUID().replace(/-/g, '').slice(0, 12)}`;
+	const id = `sch_${crypto.randomUUID().replace(/-/g, '').slice(0, 12)}`;
 	const now = new Date().toISOString();
 
 	await db

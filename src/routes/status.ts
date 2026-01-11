@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import type { Env } from '../types.js';
-import { createDbSession } from '../db/index.js';
+import { createDbSession } from '../db/session.js';
 import { isUserAdmin } from '../db/queries.js';
 import { verifyAccessToken } from '../services/jwt.js';
 import * as statusQueries from '../db/status-queries.js';

@@ -15,7 +15,6 @@ import type { Env } from '../types.js';
 import {
   getSessionByTokenHash,
   getUserById,
-  getUserByEmail,
   getClientByClientId,
   getUserClientPreference,
   isEmailAdmin,
@@ -29,6 +28,19 @@ import {
   parseSessionCookie,
 } from '../lib/session.js';
 import type { SessionDO } from '../durables/SessionDO.js';
+import { checkRouteRateLimit } from '../middleware/rateLimit.js';
+import { getClientIP } from '../middleware/security.js';
+import {
+  RATE_LIMIT_WINDOW,
+  RATE_LIMIT_SESSION_VALIDATE,
+  RATE_LIMIT_SESSION_REVOKE,
+  RATE_LIMIT_SESSION_REVOKE_ALL,
+  RATE_LIMIT_SESSION_REVOKE_ALL_WINDOW,
+  RATE_LIMIT_SESSION_LIST,
+  RATE_LIMIT_SESSION_DELETE,
+  RATE_LIMIT_SESSION_CHECK,
+  RATE_LIMIT_SESSION_SERVICE,
+} from '../utils/constants.js';
 
 const session = new Hono<{ Bindings: Env }>();
 
@@ -39,6 +51,21 @@ const session = new Hono<{ Bindings: Env }>();
  */
 session.post('/validate', async (c) => {
   const db = createDbSession(c.env);
+
+  // Rate limit by IP
+  const rateLimit = await checkRouteRateLimit(
+    db,
+    'session_validate',
+    getClientIP(c.req.raw),
+    RATE_LIMIT_SESSION_VALIDATE,
+    RATE_LIMIT_WINDOW
+  );
+  if (!rateLimit.allowed) {
+    return c.json(
+      { error: 'rate_limit', message: 'Too many requests. Please try again later.', retry_after: rateLimit.retryAfter },
+      429
+    );
+  }
 
   // Try SessionDO first (new system)
   const parsedSession = await getSessionFromRequest(c.req.raw, c.env.SESSION_SECRET);
@@ -83,8 +110,8 @@ session.post('/validate', async (c) => {
     try {
       const payload = await verifyAccessToken(c.env, accessTokenMatch[1]);
 
-      if (payload?.email) {
-        const user = await getUserByEmail(db, payload.email);
+      if (payload?.sub) {
+        const user = await getUserById(db, payload.sub);
 
         if (user) {
           const isAdmin = user.is_admin === 1 || isEmailAdmin(user.email);
@@ -142,6 +169,23 @@ session.post('/validate', async (c) => {
  * Revoke current session (logout)
  */
 session.post('/revoke', async (c) => {
+  const db = createDbSession(c.env);
+
+  // Rate limit by IP
+  const rateLimit = await checkRouteRateLimit(
+    db,
+    'session_revoke',
+    getClientIP(c.req.raw),
+    RATE_LIMIT_SESSION_REVOKE,
+    RATE_LIMIT_WINDOW
+  );
+  if (!rateLimit.allowed) {
+    return c.json(
+      { error: 'rate_limit', message: 'Too many requests. Please try again later.', retry_after: rateLimit.retryAfter },
+      429
+    );
+  }
+
   const parsedSession = await getSessionFromRequest(c.req.raw, c.env.SESSION_SECRET);
 
   if (!parsedSession) {
@@ -175,6 +219,23 @@ session.post('/revoke', async (c) => {
  * Revoke all sessions (logout from all devices)
  */
 session.post('/revoke-all', async (c) => {
+  const db = createDbSession(c.env);
+
+  // Rate limit by IP (stricter limit: 3 per hour)
+  const rateLimit = await checkRouteRateLimit(
+    db,
+    'session_revoke_all',
+    getClientIP(c.req.raw),
+    RATE_LIMIT_SESSION_REVOKE_ALL,
+    RATE_LIMIT_SESSION_REVOKE_ALL_WINDOW
+  );
+  if (!rateLimit.allowed) {
+    return c.json(
+      { error: 'rate_limit', message: 'Too many requests. Please try again later.', retry_after: rateLimit.retryAfter },
+      429
+    );
+  }
+
   const parsedSession = await getSessionFromRequest(c.req.raw, c.env.SESSION_SECRET);
 
   if (!parsedSession) {
@@ -205,6 +266,23 @@ session.post('/revoke-all', async (c) => {
  * List all active sessions for current user
  */
 session.get('/list', async (c) => {
+  const db = createDbSession(c.env);
+
+  // Rate limit by IP
+  const rateLimit = await checkRouteRateLimit(
+    db,
+    'session_list',
+    getClientIP(c.req.raw),
+    RATE_LIMIT_SESSION_LIST,
+    RATE_LIMIT_WINDOW
+  );
+  if (!rateLimit.allowed) {
+    return c.json(
+      { error: 'rate_limit', message: 'Too many requests. Please try again later.', retry_after: rateLimit.retryAfter },
+      429
+    );
+  }
+
   const parsedSession = await getSessionFromRequest(c.req.raw, c.env.SESSION_SECRET);
 
   if (!parsedSession) {
@@ -230,6 +308,23 @@ session.get('/list', async (c) => {
  * Revoke a specific session by ID (must be own session)
  */
 session.delete('/:sessionId', async (c) => {
+  const db = createDbSession(c.env);
+
+  // Rate limit by IP
+  const rateLimit = await checkRouteRateLimit(
+    db,
+    'session_delete',
+    getClientIP(c.req.raw),
+    RATE_LIMIT_SESSION_DELETE,
+    RATE_LIMIT_WINDOW
+  );
+  if (!rateLimit.allowed) {
+    return c.json(
+      { error: 'rate_limit', message: 'Too many requests. Please try again later.', retry_after: rateLimit.retryAfter },
+      429
+    );
+  }
+
   const parsedSession = await getSessionFromRequest(c.req.raw, c.env.SESSION_SECRET);
 
   if (!parsedSession) {
@@ -257,6 +352,21 @@ session.delete('/:sessionId', async (c) => {
  */
 session.get('/check', async (c) => {
   const db = createDbSession(c.env);
+
+  // Rate limit by IP
+  const rateLimit = await checkRouteRateLimit(
+    db,
+    'session_check',
+    getClientIP(c.req.raw),
+    RATE_LIMIT_SESSION_CHECK,
+    RATE_LIMIT_WINDOW
+  );
+  if (!rateLimit.allowed) {
+    return c.json(
+      { error: 'rate_limit', message: 'Too many requests. Please try again later.', retry_after: rateLimit.retryAfter },
+      429
+    );
+  }
 
   // Try SessionDO first (new system)
   const parsedSession = await getSessionFromRequest(c.req.raw, c.env.SESSION_SECRET);
@@ -299,8 +409,8 @@ session.get('/check', async (c) => {
       const accessToken = accessTokenMatch[1];
       const payload = await verifyAccessToken(c.env, accessToken);
 
-      if (payload && payload.email) {
-        const user = await getUserByEmail(db, payload.email);
+      if (payload && payload.sub) {
+        const user = await getUserById(db, payload.sub);
         if (user) {
           const isAdmin = user.is_admin === 1 || isEmailAdmin(user.email);
           const clientId = payload.client_id as string | undefined;
@@ -381,6 +491,21 @@ session.get('/check', async (c) => {
  */
 session.post('/validate-service', async (c) => {
   const db = createDbSession(c.env);
+
+  // Rate limit by IP (higher limit for internal services)
+  const rateLimit = await checkRouteRateLimit(
+    db,
+    'session_service',
+    getClientIP(c.req.raw),
+    RATE_LIMIT_SESSION_SERVICE,
+    RATE_LIMIT_WINDOW
+  );
+  if (!rateLimit.allowed) {
+    return c.json(
+      { valid: false, error: 'rate_limit', message: 'Too many requests. Please try again later.', retry_after: rateLimit.retryAfter },
+      429
+    );
+  }
 
   let sessionToken: string;
   try {

@@ -222,10 +222,9 @@ export interface GoogleUserInfo {
 
 
 // JWT Payload
+// Note: PII (email, name) intentionally excluded - clients should use /userinfo endpoint
 export interface JWTPayload {
   sub: string;
-  email: string;
-  name: string | null;
   client_id: string;
   iss: string;
   iat: number;

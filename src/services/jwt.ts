@@ -43,10 +43,10 @@ export async function createAccessToken(
   const privateKey = await getPrivateKey(env);
   const now = Math.floor(Date.now() / 1000);
 
+  // Note: PII (email, name) intentionally excluded from JWT claims
+  // Clients should fetch user details from the /userinfo endpoint
   const payload: JWTPayload = {
     sub: user.id,
-    email: user.email,
-    name: user.name,
     client_id: clientId,
     iss: JWT_ISSUER,
     iat: now,
@@ -81,8 +81,6 @@ export async function verifyAccessToken(
 
     return {
       sub: payload.sub as string,
-      email: payload.email as string,
-      name: payload.name as string | null,
       client_id: payload.client_id as string,
       iss: payload.iss as string,
       iat: payload.iat as number,
@@ -101,8 +99,6 @@ export function decodeToken(token: string): JWTPayload | null {
     const decoded = jose.decodeJwt(token);
     return {
       sub: decoded.sub as string,
-      email: decoded.email as string,
-      name: decoded.name as string | null,
       client_id: decoded.client_id as string,
       iss: decoded.iss as string,
       iat: decoded.iat as number,

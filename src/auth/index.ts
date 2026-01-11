@@ -250,7 +250,7 @@ export function createAuth(env: Env) {
               throw new Error('Failed to send magic link email');
             }
 
-            console.log(`[MagicLink] Sent magic link to ${email}`);
+            console.log('[MagicLink] Sent magic link');
           } catch (error) {
             console.error('[MagicLink] Error sending email:', error);
             throw error;
@@ -287,17 +287,17 @@ export function createAuth(env: Env) {
           before: async (user) => {
             // Check feature flag first - if public signup is enabled, skip allowlist
             if (env.PUBLIC_SIGNUP_ENABLED === 'true') {
-              console.log(`[Auth] Public signup enabled - creating user: ${user.email}`);
+              console.log('[Auth] Public signup enabled - creating new user');
               return { data: user };
             }
 
             // Existing allowlist enforcement
             const allowed = await isEmailAllowed(groveDb, user.email);
             if (!allowed) {
-              console.log(`[Auth] Blocked signup for non-allowlisted email: ${user.email}`);
+              console.log('[Auth] Signup blocked - email not in allowlist');
               throw new Error('Email not authorized. Contact an administrator for access.');
             }
-            console.log(`[Auth] Creating user for allowlisted email: ${user.email}`);
+            console.log('[Auth] User created successfully');
             // Return in the format expected by Better Auth hooks
             return { data: user };
           },

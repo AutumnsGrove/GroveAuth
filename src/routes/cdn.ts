@@ -115,6 +115,26 @@ function sanitizeFilename(filename: string): string {
 }
 
 /**
+ * Validate folder path for safe storage (prevent path traversal)
+ */
+function validateFolder(folder: string): { valid: boolean; normalized: string } {
+	// Reject dangerous patterns
+	if (folder.includes('..') || folder.includes('\\') || folder.includes('\0') || folder.includes('//')) {
+		return { valid: false, normalized: '' };
+	}
+
+	// Only allow alphanumeric, dash, underscore, dot, and forward slash
+	if (!/^[a-zA-Z0-9._\/-]*$/.test(folder)) {
+		return { valid: false, normalized: '' };
+	}
+
+	// Normalize: remove leading/trailing slashes
+	const normalized = folder.replace(/^\/+|\/+$/g, '');
+
+	return { valid: true, normalized };
+}
+
+/**
  * POST /cdn/upload - Upload a file to the CDN
  */
 cdn.post('/upload', async (c) => {
@@ -124,8 +144,14 @@ cdn.post('/upload', async (c) => {
 	try {
 		const formData = await c.req.formData();
 		const file = formData.get('file') as File | null;
-		const folder = (formData.get('folder') as string) || '/';
+		const folder = (formData.get('folder') as string) || '';
 		const altText = (formData.get('alt_text') as string) || null;
+
+		// Validate folder for path traversal
+		const validation = validateFolder(folder);
+		if (!validation.valid) {
+			return c.json({ error: 'invalid_folder', error_description: 'Folder contains invalid characters' }, 400);
+		}
 
 		if (!file) {
 			return c.json({ error: 'No file provided' }, 400);
@@ -149,9 +175,10 @@ cdn.post('/upload', async (c) => {
 		const originalFilename = file.name;
 		const sanitizedFilename = sanitizeFilename(originalFilename);
 
-		// Build R2 key: folder/filename
-		const normalizedFolder = folder.startsWith('/') ? folder.substring(1) : folder;
-		const key = normalizedFolder ? `${normalizedFolder}/${sanitizedFilename}` : sanitizedFilename;
+		// Build R2 key: folder/filename (using validated and normalized folder)
+		const key = validation.normalized
+			? `${validation.normalized}/${sanitizedFilename}`
+			: sanitizedFilename;
 
 		// Upload to R2
 		const arrayBuffer = await file.arrayBuffer();

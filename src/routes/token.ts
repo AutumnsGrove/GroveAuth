@@ -6,8 +6,7 @@ import { Hono, type Context } from 'hono';
 import type { Env, TokenResponse } from '../types.js';
 import {
   getClientByClientId,
-  getAuthCode,
-  markAuthCodeUsed,
+  consumeAuthCode,
   getUserById,
   createRefreshToken,
   getRefreshTokenByHash,
@@ -155,25 +154,18 @@ async function handleAuthorizationCodeGrant(
     return c.json({ error: 'invalid_client', error_description: 'Invalid client credentials' }, 401);
   }
 
-  // Get and validate auth code
-  const authCode = await getAuthCode(db, code);
+  // Atomically consume auth code - validates and marks as used in a single operation
+  // This prevents race conditions where concurrent requests could both pass validation
+  const authCode = await consumeAuthCode(db, code, client_id);
 
   if (!authCode) {
-    return c.json({ error: 'invalid_grant', error_description: 'Authorization code not found' }, 400);
+    return c.json(
+      { error: 'invalid_grant', error_description: 'Authorization code invalid, expired, or already used' },
+      400
+    );
   }
 
-  if (authCode.used) {
-    return c.json({ error: 'invalid_grant', error_description: 'Authorization code already used' }, 400);
-  }
-
-  if (new Date(authCode.expires_at) < new Date()) {
-    return c.json({ error: 'invalid_grant', error_description: 'Authorization code expired' }, 400);
-  }
-
-  if (authCode.client_id !== client_id) {
-    return c.json({ error: 'invalid_grant', error_description: 'Client mismatch' }, 400);
-  }
-
+  // Validate redirect_uri matches (not checked in atomic query for security - must match exactly)
   if (authCode.redirect_uri !== redirect_uri) {
     return c.json({ error: 'invalid_grant', error_description: 'Redirect URI mismatch' }, 400);
   }
@@ -194,9 +186,6 @@ async function handleAuthorizationCodeGrant(
       return c.json({ error: 'invalid_grant', error_description: 'Invalid code verifier' }, 400);
     }
   }
-
-  // Mark auth code as used
-  await markAuthCodeUsed(db, code);
 
   // Get user
   const user = await getUserById(db, authCode.user_id);

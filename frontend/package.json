@@ -3,6 +3,11 @@
   "version": "1.0.0",
   "description": "Frontend for GroveAuth authentication service",
   "type": "module",
+  "pnpm": {
+    "overrides": {
+      "cookie": ">=0.7.0"
+    }
+  },
   "scripts": {
     "dev": "vite dev",
     "build": "vite build",
@@ -12,7 +17,7 @@
   },
   "devDependencies": {
     "@sveltejs/adapter-cloudflare": "^7.0.0",
-    "@sveltejs/kit": "^2.0.0",
+    "@sveltejs/kit": "^2.49.4",
     "@sveltejs/vite-plugin-svelte": "^5.0.0",
     "autoprefixer": "^10.4.0",
     "postcss": "^8.4.0",

@@ -11,6 +11,7 @@ import {
   RATE_LIMIT_MAGIC_SEND_PER_IP,
   RATE_LIMIT_TOKEN_PER_CLIENT,
   RATE_LIMIT_VERIFY_PER_CLIENT,
+  RATE_LIMIT_ADMIN_PER_IP,
   RATE_LIMIT_WINDOW,
 } from '../utils/constants.js';
 
@@ -113,6 +114,17 @@ export const verifyRateLimiter = createRateLimiter({
     // Use IP as key since we don't know client_id before verification
     return getClientIP(c.req.raw);
   },
+});
+
+/**
+ * Rate limiter for admin endpoints (by IP)
+ * Prevents rapid enumeration of users and audit logs
+ */
+export const adminRateLimiter = createRateLimiter({
+  keyPrefix: 'admin',
+  limit: RATE_LIMIT_ADMIN_PER_IP,
+  windowSeconds: RATE_LIMIT_WINDOW,
+  getKey: (c) => getClientIP(c.req.raw),
 });
 
 /**

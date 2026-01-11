@@ -201,8 +201,8 @@ session.post('/revoke', async (c) => {
   // Clear all session-related cookies
   const clearCookies = [
     clearSessionCookieHeader(),
-    'access_token=; Path=/; HttpOnly; Secure; SameSite=Lax; Domain=.grove.place; Max-Age=0',
-    'refresh_token=; Path=/; HttpOnly; Secure; SameSite=Lax; Domain=.grove.place; Max-Age=0',
+    'access_token=; Path=/; HttpOnly; Secure; SameSite=Strict; Domain=.grove.place; Max-Age=0',
+    'refresh_token=; Path=/; HttpOnly; Secure; SameSite=Strict; Domain=.grove.place; Max-Age=0',
   ];
 
   return new Response(JSON.stringify({ success: true }), {

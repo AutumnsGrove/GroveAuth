@@ -132,8 +132,8 @@ export function createAuth(env: Env) {
 
     // Session configuration
     session: {
-      // 30 days session expiry
-      expiresIn: 30 * 24 * 60 * 60,
+      // 7 days session expiry
+      expiresIn: 7 * 24 * 60 * 60,
       // Refresh session if within 7 days of expiry
       updateAge: 7 * 24 * 60 * 60,
       // Cross-subdomain cookie for .grove.place

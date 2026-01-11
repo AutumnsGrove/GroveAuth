@@ -190,7 +190,7 @@ google.get('/callback', async (c) => {
     deviceName,
     ipAddress,
     userAgent,
-    expiresInSeconds: 30 * 24 * 60 * 60, // 30 days
+    expiresInSeconds: 7 * 24 * 60 * 60, // 7 days
   });
 
   // Generate session cookie header

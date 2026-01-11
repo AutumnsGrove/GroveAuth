@@ -132,17 +132,17 @@ export async function createSessionCookieHeader(
   sessionId: string,
   userId: string,
   secret: string,
-  maxAgeSeconds: number = 30 * 24 * 60 * 60 // 30 days
+  maxAgeSeconds: number = 7 * 24 * 60 * 60 // 7 days
 ): Promise<string> {
   const value = await createSessionCookie(sessionId, userId, secret);
-  return `grove_session=${value}; Path=/; HttpOnly; Secure; SameSite=Lax; Domain=.grove.place; Max-Age=${maxAgeSeconds}`;
+  return `grove_session=${value}; Path=/; HttpOnly; Secure; SameSite=Strict; Domain=.grove.place; Max-Age=${maxAgeSeconds}`;
 }
 
 /**
  * Generate cookie header to clear the session
  */
 export function clearSessionCookieHeader(): string {
-  return 'grove_session=; Path=/; HttpOnly; Secure; SameSite=Lax; Domain=.grove.place; Max-Age=0';
+  return 'grove_session=; Path=/; HttpOnly; Secure; SameSite=Strict; Domain=.grove.place; Max-Age=0';
 }
 
 /**

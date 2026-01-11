@@ -172,6 +172,13 @@ async function handleAuthorizationCodeGrant(
 
   // Verify PKCE if code challenge was used
   if (authCode.code_challenge) {
+    if (!authCode.code_challenge_method) {
+      return c.json({
+        error: 'invalid_request',
+        error_description: 'code_challenge_method required when code_challenge is present'
+      }, 400);
+    }
+
     if (!code_verifier) {
       return c.json({ error: 'invalid_grant', error_description: 'Code verifier required' }, 400);
     }
@@ -179,11 +186,11 @@ async function handleAuthorizationCodeGrant(
     const valid = await verifyCodeChallenge(
       code_verifier,
       authCode.code_challenge,
-      authCode.code_challenge_method || 'S256'
+      authCode.code_challenge_method  // No longer defaults to 'S256'
     );
 
     if (!valid) {
-      return c.json({ error: 'invalid_grant', error_description: 'Invalid code verifier' }, 400);
+      return c.json({ error: 'invalid_grant', error_description: 'PKCE verification failed' }, 400);
     }
   }
 

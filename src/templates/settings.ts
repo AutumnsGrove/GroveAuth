@@ -995,7 +995,13 @@ export function getSettingsPageHTML(options: SettingsPageOptions): string {
 
         // Show backup codes
         if (data.backupCodes) {
-          backupCodesDisplay.innerHTML = data.backupCodes.map(code => '<div style="margin: 4px 0;">' + code + '</div>').join('');
+          backupCodesDisplay.textContent = '';
+          data.backupCodes.forEach(code => {
+            const div = document.createElement('div');
+            div.style.margin = '4px 0';
+            div.textContent = code;
+            backupCodesDisplay.appendChild(div);
+          });
         }
 
         setupStep1.style.display = 'none';
@@ -1077,13 +1083,34 @@ export function getSettingsPageHTML(options: SettingsPageOptions): string {
 
         const data = await response.json();
         if (data.backupCodes && data.backupCodes.length > 0) {
-          backupCodesList.innerHTML = data.backupCodes.map(code => '<div style="margin: 4px 0;">' + (code.used ? '<s style="color: var(--color-text-muted);">' + code.code + '</s>' : code.code) + '</div>').join('');
+          backupCodesList.textContent = '';
+          data.backupCodes.forEach(code => {
+            const div = document.createElement('div');
+            div.style.margin = '4px 0';
+            if (code.used) {
+              const strikethrough = document.createElement('s');
+              strikethrough.style.color = 'var(--color-text-muted)';
+              strikethrough.textContent = code.code;
+              div.appendChild(strikethrough);
+            } else {
+              div.textContent = code.code;
+            }
+            backupCodesList.appendChild(div);
+          });
         } else {
-          backupCodesList.innerHTML = '<p style="color: var(--color-text-muted);">No backup codes available.</p>';
+          backupCodesList.textContent = '';
+          const p = document.createElement('p');
+          p.style.color = 'var(--color-text-muted)';
+          p.textContent = 'No backup codes available.';
+          backupCodesList.appendChild(p);
         }
       } catch (err) {
         console.error('Error loading backup codes:', err);
-        backupCodesList.innerHTML = '<p style="color: var(--color-error);">Failed to load backup codes.</p>';
+        backupCodesList.textContent = '';
+        const p = document.createElement('p');
+        p.style.color = 'var(--color-error)';
+        p.textContent = 'Failed to load backup codes.';
+        backupCodesList.appendChild(p);
       }
     });
 
@@ -1107,7 +1134,13 @@ export function getSettingsPageHTML(options: SettingsPageOptions): string {
 
         const data = await response.json();
         if (data.backupCodes) {
-          backupCodesList.innerHTML = data.backupCodes.map(code => '<div style="margin: 4px 0;">' + code + '</div>').join('');
+          backupCodesList.textContent = '';
+          data.backupCodes.forEach(code => {
+            const div = document.createElement('div');
+            div.style.margin = '4px 0';
+            div.textContent = code;
+            backupCodesList.appendChild(div);
+          });
         }
       } catch (err) {
         console.error('Error regenerating backup codes:', err);

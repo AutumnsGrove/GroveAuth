@@ -152,7 +152,7 @@ export function createAuth(env: Env) {
       defaultCookieAttributes: {
         httpOnly: true,
         secure: true,
-        sameSite: 'lax',
+        sameSite: 'strict',
         path: '/',
       },
     },

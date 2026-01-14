@@ -361,8 +361,7 @@ export function getLoginPageHTML(options: LoginPageOptions): string {
     </div>
   </div>
 
-  <!-- Google-only for launch - no JavaScript needed -->
-  ` : ''}
+  ${params ? '<!-- Google-only for launch - no JavaScript needed -->' : ''}
 </body>
 </html>`;
 }

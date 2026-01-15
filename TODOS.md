@@ -89,7 +89,7 @@
 ## Code Quality
 - [ ] Add comprehensive unit tests
 - [ ] Add integration tests for OAuth flows
-- [x] Security audit and penetration testing — **Completed 2026-01-11** (see `docs/security-audit/`)
+- [x] Security audit and penetration testing — **Completed 2026-01-11**
 
 ## Security Audit Follow-up (2026-01-11)
 

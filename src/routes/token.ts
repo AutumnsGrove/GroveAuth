@@ -134,8 +134,10 @@ async function handleAuthorizationCodeGrant(
     );
   }
 
-  // Rate limit check
-  const rateLimit = await checkRouteRateLimit(db, 'token', client_id, RATE_LIMIT_TOKEN_PER_CLIENT);
+  // Rate limit check - use IP + client_id to prevent bypass via different client IDs
+  const clientIP = getClientIP(c.req.raw) || 'unknown';
+  const rateLimitKey = `${clientIP}:${client_id}`;
+  const rateLimit = await checkRouteRateLimit(db, 'token', rateLimitKey, RATE_LIMIT_TOKEN_PER_CLIENT);
   if (!rateLimit.allowed) {
     return c.json(
       { error: 'rate_limit', error_description: 'Too many requests', retry_after: rateLimit.retryAfter },
@@ -170,28 +172,33 @@ async function handleAuthorizationCodeGrant(
     return c.json({ error: 'invalid_grant', error_description: 'Redirect URI mismatch' }, 400);
   }
 
-  // Verify PKCE if code challenge was used
-  if (authCode.code_challenge) {
-    if (!authCode.code_challenge_method) {
-      return c.json({
-        error: 'invalid_request',
-        error_description: 'code_challenge_method required when code_challenge is present'
-      }, 400);
-    }
+  // PKCE is mandatory per OAuth 2.1 spec to prevent authorization code interception
+  if (!authCode.code_challenge) {
+    return c.json({
+      error: 'invalid_request',
+      error_description: 'PKCE code_challenge is required for all clients'
+    }, 400);
+  }
 
-    if (!code_verifier) {
-      return c.json({ error: 'invalid_grant', error_description: 'Code verifier required' }, 400);
-    }
+  if (!authCode.code_challenge_method) {
+    return c.json({
+      error: 'invalid_request',
+      error_description: 'code_challenge_method required when code_challenge is present'
+    }, 400);
+  }
 
-    const valid = await verifyCodeChallenge(
-      code_verifier,
-      authCode.code_challenge,
-      authCode.code_challenge_method  // No longer defaults to 'S256'
-    );
+  if (!code_verifier) {
+    return c.json({ error: 'invalid_grant', error_description: 'Code verifier required' }, 400);
+  }
 
-    if (!valid) {
-      return c.json({ error: 'invalid_grant', error_description: 'PKCE verification failed' }, 400);
-    }
+  const valid = await verifyCodeChallenge(
+    code_verifier,
+    authCode.code_challenge,
+    authCode.code_challenge_method
+  );
+
+  if (!valid) {
+    return c.json({ error: 'invalid_grant', error_description: 'PKCE verification failed' }, 400);
   }
 
   // Get user
@@ -248,8 +255,10 @@ async function handleRefreshTokenGrant(
     );
   }
 
-  // Rate limit check
-  const rateLimit = await checkRouteRateLimit(db, 'token', client_id, RATE_LIMIT_TOKEN_PER_CLIENT);
+  // Rate limit check - use IP + client_id to prevent bypass via different client IDs
+  const clientIP = getClientIP(c.req.raw) || 'unknown';
+  const rateLimitKey = `${clientIP}:${client_id}`;
+  const rateLimit = await checkRouteRateLimit(db, 'token', rateLimitKey, RATE_LIMIT_TOKEN_PER_CLIENT);
   if (!rateLimit.allowed) {
     return c.json(
       { error: 'rate_limit', error_description: 'Too many requests', retry_after: rateLimit.retryAfter },

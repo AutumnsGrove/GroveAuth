@@ -27,6 +27,7 @@ export function getSettingsPageHTML(options: SettingsPageOptions): string {
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js" integrity="sha512-ZTGn8lKgMaX5YXLfD/+7Y/wj01uMvD5ZIjJFy8u2JEoyjD+0KC/xnggZW6RJGxqGQBvkTYCJosDJ0PZghmS4lA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
   <style>
     :root {
       --color-bg: #fafaf9;
@@ -950,9 +951,12 @@ export function getSettingsPageHTML(options: SettingsPageOptions): string {
         const data = await response.json();
         currentTotpUri = data.totpURI;
 
-        // Generate QR code using a simple SVG-based approach
-        // In production, you might use a library like qrcode.js
-        qrCodeContainer.innerHTML = '<img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=' + encodeURIComponent(currentTotpUri) + '" alt="QR Code" style="max-width: 200px;">';
+        // Generate QR code client-side to keep TOTP secret secure
+        // Never send secrets to third-party services
+        const qr = qrcode(0, 'M');
+        qr.addData(currentTotpUri);
+        qr.make();
+        qrCodeContainer.innerHTML = qr.createImgTag(4, 8);
 
         // Extract secret from URI for manual entry
         const secretMatch = currentTotpUri.match(/secret=([A-Z2-7]+)/i);
@@ -995,7 +999,13 @@ export function getSettingsPageHTML(options: SettingsPageOptions): string {
 
         // Show backup codes
         if (data.backupCodes) {
-          backupCodesDisplay.innerHTML = data.backupCodes.map(code => '<div style="margin: 4px 0;">' + code + '</div>').join('');
+          backupCodesDisplay.textContent = '';
+          data.backupCodes.forEach(code => {
+            const div = document.createElement('div');
+            div.style.margin = '4px 0';
+            div.textContent = code;
+            backupCodesDisplay.appendChild(div);
+          });
         }
 
         setupStep1.style.display = 'none';
@@ -1077,13 +1087,34 @@ export function getSettingsPageHTML(options: SettingsPageOptions): string {
 
         const data = await response.json();
         if (data.backupCodes && data.backupCodes.length > 0) {
-          backupCodesList.innerHTML = data.backupCodes.map(code => '<div style="margin: 4px 0;">' + (code.used ? '<s style="color: var(--color-text-muted);">' + code.code + '</s>' : code.code) + '</div>').join('');
+          backupCodesList.textContent = '';
+          data.backupCodes.forEach(code => {
+            const div = document.createElement('div');
+            div.style.margin = '4px 0';
+            if (code.used) {
+              const strikethrough = document.createElement('s');
+              strikethrough.style.color = 'var(--color-text-muted)';
+              strikethrough.textContent = code.code;
+              div.appendChild(strikethrough);
+            } else {
+              div.textContent = code.code;
+            }
+            backupCodesList.appendChild(div);
+          });
         } else {
-          backupCodesList.innerHTML = '<p style="color: var(--color-text-muted);">No backup codes available.</p>';
+          backupCodesList.textContent = '';
+          const p = document.createElement('p');
+          p.style.color = 'var(--color-text-muted)';
+          p.textContent = 'No backup codes available.';
+          backupCodesList.appendChild(p);
         }
       } catch (err) {
         console.error('Error loading backup codes:', err);
-        backupCodesList.innerHTML = '<p style="color: var(--color-error);">Failed to load backup codes.</p>';
+        backupCodesList.textContent = '';
+        const p = document.createElement('p');
+        p.style.color = 'var(--color-error)';
+        p.textContent = 'Failed to load backup codes.';
+        backupCodesList.appendChild(p);
       }
     });
 
@@ -1107,7 +1138,13 @@ export function getSettingsPageHTML(options: SettingsPageOptions): string {
 
         const data = await response.json();
         if (data.backupCodes) {
-          backupCodesList.innerHTML = data.backupCodes.map(code => '<div style="margin: 4px 0;">' + code + '</div>').join('');
+          backupCodesList.textContent = '';
+          data.backupCodes.forEach(code => {
+            const div = document.createElement('div');
+            div.style.margin = '4px 0';
+            div.textContent = code;
+            backupCodesList.appendChild(div);
+          });
         }
       } catch (err) {
         console.error('Error regenerating backup codes:', err);

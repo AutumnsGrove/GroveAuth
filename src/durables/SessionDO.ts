@@ -31,6 +31,9 @@ interface SessionDOEnv {
   SESSION_SECRET: string;
 }
 
+// Maximum sessions per user to prevent session exhaustion attacks
+const MAX_SESSIONS_PER_USER = 10;
+
 export class SessionDO extends DurableObject<SessionDOEnv> {
   private initialized = false;
 
@@ -78,12 +81,29 @@ export class SessionDO extends DurableObject<SessionDOEnv> {
 
   /**
    * Create a new session for this user
+   * Enforces session limit by revoking oldest session if at capacity
    */
   async createSession(params: CreateSessionParams): Promise<{ sessionId: string }> {
     await this.initialize();
 
-    const sessionId = crypto.randomUUID();
     const now = Date.now();
+
+    // Check session limit and revoke oldest if at capacity
+    const sessionCount = await this.getSessionCount();
+    if (sessionCount >= MAX_SESSIONS_PER_USER) {
+      // Find and revoke the oldest session
+      const oldest = await this.ctx.storage.sql
+        .exec(`SELECT id FROM sessions WHERE expires_at > ? ORDER BY created_at ASC LIMIT 1`, now)
+        .toArray();
+
+      if (oldest.length > 0) {
+        const oldestId = oldest[0].id as string;
+        await this.revokeSession(oldestId);
+        console.log(`[SessionDO] Revoked oldest session ${oldestId} due to session limit`);
+      }
+    }
+
+    const sessionId = crypto.randomUUID();
     const expiresAt = now + params.expiresInSeconds * 1000;
 
     await this.ctx.storage.sql.exec(

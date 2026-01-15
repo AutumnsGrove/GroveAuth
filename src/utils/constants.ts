@@ -15,6 +15,23 @@ export const RATE_LIMIT_TOKEN_PER_CLIENT = 20; // per minute
 export const RATE_LIMIT_VERIFY_PER_CLIENT = 100; // per minute
 export const RATE_LIMIT_WINDOW = 60; // 1 minute in seconds
 
+// Session rate limiting
+export const RATE_LIMIT_SESSION_VALIDATE = 30; // per minute
+export const RATE_LIMIT_SESSION_REVOKE = 30; // per minute
+export const RATE_LIMIT_SESSION_REVOKE_ALL = 3; // per hour
+export const RATE_LIMIT_SESSION_REVOKE_ALL_WINDOW = 3600; // 1 hour in seconds
+export const RATE_LIMIT_SESSION_LIST = 30; // per minute
+export const RATE_LIMIT_SESSION_DELETE = 20; // per minute
+export const RATE_LIMIT_SESSION_CHECK = 60; // per minute
+export const RATE_LIMIT_SESSION_SERVICE = 100; // per minute for internal services
+
+// Admin rate limiting
+export const RATE_LIMIT_ADMIN_PER_IP = 30; // per minute
+
+// Pagination limits
+export const ADMIN_PAGINATION_MAX_LIMIT = 100;
+export const ADMIN_PAGINATION_DEFAULT_LIMIT = 50;
+
 // Lockout settings
 export const MAX_FAILED_ATTEMPTS = 5;
 export const LOCKOUT_DURATION = 15 * 60; // 15 minutes in seconds

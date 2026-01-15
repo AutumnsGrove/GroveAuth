@@ -6,8 +6,7 @@ import { Hono, type Context } from 'hono';
 import type { Env, TokenResponse } from '../types.js';
 import {
   getClientByClientId,
-  getAuthCode,
-  markAuthCodeUsed,
+  consumeAuthCode,
   getUserById,
   createRefreshToken,
   getRefreshTokenByHash,
@@ -135,8 +134,10 @@ async function handleAuthorizationCodeGrant(
     );
   }
 
-  // Rate limit check
-  const rateLimit = await checkRouteRateLimit(db, 'token', client_id, RATE_LIMIT_TOKEN_PER_CLIENT);
+  // Rate limit check - use IP + client_id to prevent bypass via different client IDs
+  const clientIP = getClientIP(c.req.raw) || 'unknown';
+  const rateLimitKey = `${clientIP}:${client_id}`;
+  const rateLimit = await checkRouteRateLimit(db, 'token', rateLimitKey, RATE_LIMIT_TOKEN_PER_CLIENT);
   if (!rateLimit.allowed) {
     return c.json(
       { error: 'rate_limit', error_description: 'Too many requests', retry_after: rateLimit.retryAfter },
@@ -155,48 +156,50 @@ async function handleAuthorizationCodeGrant(
     return c.json({ error: 'invalid_client', error_description: 'Invalid client credentials' }, 401);
   }
 
-  // Get and validate auth code
-  const authCode = await getAuthCode(db, code);
+  // Atomically consume auth code - validates and marks as used in a single operation
+  // This prevents race conditions where concurrent requests could both pass validation
+  const authCode = await consumeAuthCode(db, code, client_id);
 
   if (!authCode) {
-    return c.json({ error: 'invalid_grant', error_description: 'Authorization code not found' }, 400);
+    return c.json(
+      { error: 'invalid_grant', error_description: 'Authorization code invalid, expired, or already used' },
+      400
+    );
   }
 
-  if (authCode.used) {
-    return c.json({ error: 'invalid_grant', error_description: 'Authorization code already used' }, 400);
-  }
-
-  if (new Date(authCode.expires_at) < new Date()) {
-    return c.json({ error: 'invalid_grant', error_description: 'Authorization code expired' }, 400);
-  }
-
-  if (authCode.client_id !== client_id) {
-    return c.json({ error: 'invalid_grant', error_description: 'Client mismatch' }, 400);
-  }
-
+  // Validate redirect_uri matches (not checked in atomic query for security - must match exactly)
   if (authCode.redirect_uri !== redirect_uri) {
     return c.json({ error: 'invalid_grant', error_description: 'Redirect URI mismatch' }, 400);
   }
 
-  // Verify PKCE if code challenge was used
-  if (authCode.code_challenge) {
-    if (!code_verifier) {
-      return c.json({ error: 'invalid_grant', error_description: 'Code verifier required' }, 400);
-    }
-
-    const valid = await verifyCodeChallenge(
-      code_verifier,
-      authCode.code_challenge,
-      authCode.code_challenge_method || 'S256'
-    );
-
-    if (!valid) {
-      return c.json({ error: 'invalid_grant', error_description: 'Invalid code verifier' }, 400);
-    }
+  // PKCE is mandatory per OAuth 2.1 spec to prevent authorization code interception
+  if (!authCode.code_challenge) {
+    return c.json({
+      error: 'invalid_request',
+      error_description: 'PKCE code_challenge is required for all clients'
+    }, 400);
   }
 
-  // Mark auth code as used
-  await markAuthCodeUsed(db, code);
+  if (!authCode.code_challenge_method) {
+    return c.json({
+      error: 'invalid_request',
+      error_description: 'code_challenge_method required when code_challenge is present'
+    }, 400);
+  }
+
+  if (!code_verifier) {
+    return c.json({ error: 'invalid_grant', error_description: 'Code verifier required' }, 400);
+  }
+
+  const valid = await verifyCodeChallenge(
+    code_verifier,
+    authCode.code_challenge,
+    authCode.code_challenge_method
+  );
+
+  if (!valid) {
+    return c.json({ error: 'invalid_grant', error_description: 'PKCE verification failed' }, 400);
+  }
 
   // Get user
   const user = await getUserById(db, authCode.user_id);
@@ -252,8 +255,10 @@ async function handleRefreshTokenGrant(
     );
   }
 
-  // Rate limit check
-  const rateLimit = await checkRouteRateLimit(db, 'token', client_id, RATE_LIMIT_TOKEN_PER_CLIENT);
+  // Rate limit check - use IP + client_id to prevent bypass via different client IDs
+  const clientIP = getClientIP(c.req.raw) || 'unknown';
+  const rateLimitKey = `${clientIP}:${client_id}`;
+  const rateLimit = await checkRouteRateLimit(db, 'token', rateLimitKey, RATE_LIMIT_TOKEN_PER_CLIENT);
   if (!rateLimit.allowed) {
     return c.json(
       { error: 'rate_limit', error_description: 'Too many requests', retry_after: rateLimit.retryAfter },

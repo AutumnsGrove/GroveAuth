@@ -34,11 +34,10 @@ verify.get('/', async (c) => {
   }
 
   // Token is valid
+  // Note: email and name intentionally excluded - clients should use /userinfo endpoint
   const response: TokenInfo = {
     active: true,
     sub: payload.sub,
-    email: payload.email,
-    name: payload.name || undefined,
     exp: payload.exp,
     iat: payload.iat,
     client_id: payload.client_id,

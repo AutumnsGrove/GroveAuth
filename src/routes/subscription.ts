@@ -59,6 +59,11 @@ subscription.get('/:userId', async (c) => {
     return c.json({ error: 'unauthorized', error_description: 'Missing or invalid token' }, 401);
   }
 
+  const requestedUserId = c.req.param('userId');
+  if (payload.sub !== requestedUserId) {
+    return c.json({ error: 'forbidden', error_description: 'Cannot access other user data' }, 403);
+  }
+
   const db = createDbSession(c.env);
   const userId = c.req.param('userId');
   const sub = await getUserSubscription(db, userId);
@@ -84,6 +89,11 @@ subscription.get('/:userId/can-post', async (c) => {
     return c.json({ error: 'unauthorized', error_description: 'Missing or invalid token' }, 401);
   }
 
+  const requestedUserId = c.req.param('userId');
+  if (payload.sub !== requestedUserId) {
+    return c.json({ error: 'forbidden', error_description: 'Cannot access other user data' }, 403);
+  }
+
   const db = createDbSession(c.env);
   const userId = c.req.param('userId');
   const result = await canUserCreatePost(db, userId);
@@ -99,6 +109,11 @@ subscription.post('/:userId/post-count', async (c) => {
   const payload = await verifyBearerToken(c);
   if (!payload) {
     return c.json({ error: 'unauthorized', error_description: 'Missing or invalid token' }, 401);
+  }
+
+  const requestedUserId = c.req.param('userId');
+  if (payload.sub !== requestedUserId) {
+    return c.json({ error: 'forbidden', error_description: 'Cannot access other user data' }, 403);
   }
 
   const db = createDbSession(c.env);
@@ -146,6 +161,11 @@ subscription.put('/:userId/tier', async (c) => {
   const payload = await verifyBearerToken(c);
   if (!payload) {
     return c.json({ error: 'unauthorized', error_description: 'Missing or invalid token' }, 401);
+  }
+
+  const requestedUserId = c.req.param('userId');
+  if (payload.sub !== requestedUserId) {
+    return c.json({ error: 'forbidden', error_description: 'Cannot access other user data' }, 403);
   }
 
   const db = createDbSession(c.env);

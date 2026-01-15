@@ -51,12 +51,13 @@ async function hmacSign(data: string, secret: string): Promise<string> {
 
 /**
  * Timing-safe string comparison to prevent timing attacks
+ * Avoids early returns that could leak length information
  */
 function timingSafeEqual(a: string, b: string): boolean {
-  if (a.length !== b.length) return false;
-  let result = 0;
-  for (let i = 0; i < a.length; i++) {
-    result |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  const maxLength = Math.max(a.length, b.length);
+  let result = a.length ^ b.length; // Accumulate length difference
+  for (let i = 0; i < maxLength; i++) {
+    result |= (a.charCodeAt(i) || 0) ^ (b.charCodeAt(i) || 0);
   }
   return result === 0;
 }
@@ -132,17 +133,17 @@ export async function createSessionCookieHeader(
   sessionId: string,
   userId: string,
   secret: string,
-  maxAgeSeconds: number = 30 * 24 * 60 * 60 // 30 days
+  maxAgeSeconds: number = 7 * 24 * 60 * 60 // 7 days
 ): Promise<string> {
   const value = await createSessionCookie(sessionId, userId, secret);
-  return `grove_session=${value}; Path=/; HttpOnly; Secure; SameSite=Lax; Domain=.grove.place; Max-Age=${maxAgeSeconds}`;
+  return `grove_session=${value}; Path=/; HttpOnly; Secure; SameSite=Strict; Domain=.grove.place; Max-Age=${maxAgeSeconds}`;
 }
 
 /**
  * Generate cookie header to clear the session
  */
 export function clearSessionCookieHeader(): string {
-  return 'grove_session=; Path=/; HttpOnly; Secure; SameSite=Lax; Domain=.grove.place; Max-Age=0';
+  return 'grove_session=; Path=/; HttpOnly; Secure; SameSite=Strict; Domain=.grove.place; Max-Age=0';
 }
 
 /**

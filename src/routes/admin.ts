@@ -14,8 +14,18 @@ import {
 } from '../db/queries.js';
 import { verifyAccessToken } from '../services/jwt.js';
 import { createDbSession } from '../db/session.js';
+import { adminRateLimiter } from '../middleware/rateLimit.js';
+import {
+  ADMIN_PAGINATION_MAX_LIMIT,
+  ADMIN_PAGINATION_DEFAULT_LIMIT,
+} from '../utils/constants.js';
 
 const admin = new Hono<{ Bindings: Env }>();
+
+/**
+ * Middleware: Apply rate limiting to all admin routes
+ */
+admin.use('/*', adminRateLimiter);
 
 /**
  * Middleware: Verify admin access
@@ -76,12 +86,16 @@ admin.get('/stats', async (c) => {
  */
 admin.get('/users', async (c) => {
   const db = createDbSession(c.env);
-  const limit = parseInt(c.req.query('limit') || '50');
-  const offset = parseInt(c.req.query('offset') || '0');
+  // Enforce pagination bounds to prevent large data dumps
+  const limit = Math.min(
+    Math.max(parseInt(c.req.query('limit') || String(ADMIN_PAGINATION_DEFAULT_LIMIT)), 1),
+    ADMIN_PAGINATION_MAX_LIMIT
+  );
+  const offset = Math.max(parseInt(c.req.query('offset') || '0'), 0);
 
   const users = await getAllUsers(db, limit, offset);
 
-  return c.json({ users });
+  return c.json({ users, pagination: { limit, offset } });
 });
 
 /**
@@ -89,13 +103,17 @@ admin.get('/users', async (c) => {
  */
 admin.get('/audit-log', async (c) => {
   const db = createDbSession(c.env);
-  const limit = parseInt(c.req.query('limit') || '100');
-  const offset = parseInt(c.req.query('offset') || '0');
+  // Enforce pagination bounds to prevent large data dumps
+  const limit = Math.min(
+    Math.max(parseInt(c.req.query('limit') || String(ADMIN_PAGINATION_DEFAULT_LIMIT)), 1),
+    ADMIN_PAGINATION_MAX_LIMIT
+  );
+  const offset = Math.max(parseInt(c.req.query('offset') || '0'), 0);
   const eventType = c.req.query('event_type') || undefined;
 
   const logs = await getAuditLogs(db, { limit, offset, eventType });
 
-  return c.json({ logs });
+  return c.json({ logs, pagination: { limit, offset } });
 });
 
 /**

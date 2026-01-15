@@ -208,6 +208,41 @@ export async function markAuthCodeUsed(db: D1DatabaseOrSession, code: string): P
   await db.prepare('UPDATE auth_codes SET used = 1 WHERE code = ?').bind(code).run();
 }
 
+/**
+ * Atomically consume an auth code - validates and marks as used in a single operation.
+ * This prevents race conditions where two concurrent requests could both pass validation
+ * before either marks the code as used.
+ *
+ * @param db - Database connection
+ * @param code - The authorization code to consume
+ * @param clientId - Expected client_id for validation
+ * @returns The auth code if valid and successfully consumed, null otherwise
+ */
+export async function consumeAuthCode(
+  db: D1DatabaseOrSession,
+  code: string,
+  clientId: string
+): Promise<AuthCode | null> {
+  const now = new Date().toISOString();
+
+  // Use UPDATE...RETURNING to atomically validate and mark the code as used
+  // This ensures only one request can successfully consume a given auth code
+  const result = await db
+    .prepare(
+      `UPDATE auth_codes
+       SET used = 1
+       WHERE code = ?
+         AND used = 0
+         AND expires_at > ?
+         AND client_id = ?
+       RETURNING *`
+    )
+    .bind(code, now, clientId)
+    .first<AuthCode>();
+
+  return result;
+}
+
 export async function cleanupExpiredAuthCodes(db: D1DatabaseOrSession): Promise<void> {
   const now = new Date().toISOString();
   await db.prepare('DELETE FROM auth_codes WHERE expires_at < ? OR used = 1').bind(now).run();

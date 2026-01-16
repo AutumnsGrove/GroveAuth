@@ -28,13 +28,45 @@ const betterAuthRoutes = new Hono<{ Bindings: Env }>();
  * all authentication-related requests under the /api/auth/* path.
  */
 betterAuthRoutes.all('/*', async (c) => {
-  // Create auth instance with current environment bindings
-  const auth = createAuth(c.env);
+  try {
+    // Get Cloudflare context from the request (contains geolocation data)
+    const cf = c.req.raw.cf;
 
-  // Better Auth handler expects a standard Request and returns a Response
-  const response = await auth.handler(c.req.raw);
+    console.log('[BetterAuth] Request:', c.req.method, c.req.path);
 
-  return response;
+    // Create auth instance with current environment bindings and CF context
+    const auth = createAuth(c.env, cf);
+
+    // Better Auth handler expects a standard Request and returns a Response
+    const response = await auth.handler(c.req.raw);
+
+    // Log response status for debugging
+    console.log('[BetterAuth] Response status:', response.status);
+
+    // If it's a 500 error, try to get more details
+    if (response.status >= 500) {
+      const clonedResponse = response.clone();
+      try {
+        const body = await clonedResponse.text();
+        console.error('[BetterAuth] 5xx response body:', body || '(empty)');
+      } catch (e) {
+        console.error('[BetterAuth] Could not read response body');
+      }
+    }
+
+    return response;
+  } catch (error) {
+    // Log the actual error for debugging
+    console.error('[BetterAuth] Handler error:', error);
+    console.error('[BetterAuth] Error stack:', error instanceof Error ? error.stack : 'No stack');
+    console.error('[BetterAuth] Request path:', c.req.path);
+
+    return c.json({
+      error: 'server_error',
+      message: 'An unexpected error occurred',
+      debug: error instanceof Error ? error.message : String(error),
+    }, 500);
+  }
 });
 
 export default betterAuthRoutes;

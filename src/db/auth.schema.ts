@@ -222,3 +222,25 @@ export const subscriptionAuditLog = sqliteTable('subscription_audit_log', {
   newValue: text('new_value'),
   createdAt: text('created_at').default('CURRENT_TIMESTAMP'),
 });
+
+// =============================================================================
+// BETTER AUTH SCHEMA EXPORTS
+// =============================================================================
+// Better Auth Drizzle adapter looks up tables by their modelName configuration.
+// Since we use modelName: 'ba_user', 'ba_session', etc., the schema keys must match.
+
+export const schema = {
+  // Better Auth tables - keys must match modelName configurations
+  ba_user: baUser,
+  ba_session: baSession,
+  ba_account: baAccount,
+  ba_verification: baVerification,
+  ba_passkey: baPasskey,
+  ba_two_factor: baTwoFactor,
+  // Grove-specific tables
+  allowedEmails,
+  clients,
+  auditLog,
+  userSubscriptions,
+  subscriptionAuditLog,
+};

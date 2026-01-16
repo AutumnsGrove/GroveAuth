@@ -16,9 +16,11 @@ import { withCloudflare } from 'better-auth-cloudflare';
 import { magicLink, twoFactor } from 'better-auth/plugins';
 import { passkey } from '@better-auth/passkey';
 import { drizzle } from 'drizzle-orm/d1';
+import type { IncomingRequestCfProperties } from '@cloudflare/workers-types';
 import type { Env } from '../types.js';
 import { isEmailAllowed } from '../db/queries.js';
 import { createDbSession } from '../db/session.js';
+import { schema } from '../db/auth.schema.js';
 
 // Email template for magic link
 const MAGIC_LINK_EMAIL_HTML = (url: string) => `
@@ -85,12 +87,12 @@ Heartwood - Authentication for AutumnsGrove
  * Create a Better Auth instance configured for Cloudflare
  *
  * @param env - Cloudflare Worker environment bindings
+ * @param cf - Cloudflare request context (for geolocation/IP detection)
  * @returns Configured Better Auth instance
  */
-export function createAuth(env: Env) {
-  // Create Drizzle instance for D1
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const db = drizzle(env.DB) as any;
+export function createAuth(env: Env, cf?: IncomingRequestCfProperties) {
+  // Create Drizzle instance for D1 with schema
+  const db = drizzle(env.DB, { schema });
   const groveDb = createDbSession(env);
 
   return betterAuth({
@@ -100,16 +102,25 @@ export function createAuth(env: Env) {
     // Secret for signing tokens and cookies
     secret: env.SESSION_SECRET,
 
+    // Trusted origins for callback URLs and redirects
+    trustedOrigins: [
+      'https://autumnsgrove.com',
+      'https://heartwood.grove.place',
+      'https://amber.grove.place',
+      'https://groveengine.grove.place',
+    ],
+
     // Database configuration via better-auth-cloudflare
     ...withCloudflare(
       {
         autoDetectIpAddress: true,
         geolocationTracking: true,
+        cf: cf || {},  // Cloudflare request context for geolocation
         d1: {
           db,
           options: {
-            // Use ba_ prefix for Better Auth tables
             usePlural: false, // ba_user, ba_session, etc. (not plural)
+            debugLogs: true,  // Enable debug logging to see errors
           },
         },
         kv: env.SESSION_KV,
@@ -123,15 +134,9 @@ export function createAuth(env: Env) {
       }
     ),
 
-    // Table name configuration - use ba_ prefix
-    // This maps to our migration: ba_user, ba_session, ba_account, ba_verification
-    database: {
-      type: 'd1',
-      tablePrefix: 'ba_',
-    },
-
-    // Session configuration
+    // Session configuration with custom table name
     session: {
+      modelName: 'ba_session',  // Map to our ba_session table
       // 7 days session expiry
       expiresIn: 7 * 24 * 60 * 60,
       // Refresh session if within 7 days of expiry
@@ -152,13 +157,14 @@ export function createAuth(env: Env) {
       defaultCookieAttributes: {
         httpOnly: true,
         secure: true,
-        sameSite: 'strict',
+        sameSite: 'lax',  // Must be 'lax' for OAuth redirects to work
         path: '/',
       },
     },
 
     // Extended user schema (Grove-specific fields)
     user: {
+      modelName: 'ba_user',  // Map to our ba_user table
       additionalFields: {
         // Multi-tenant association
         tenantId: {
@@ -307,10 +313,16 @@ export function createAuth(env: Env) {
 
     // Account linking - allow multiple providers per user
     account: {
+      modelName: 'ba_account',  // Map to our ba_account table
       accountLinking: {
         enabled: true,
         trustedProviders: ['google', 'discord'],
       },
+    },
+
+    // Verification table for magic links
+    verification: {
+      modelName: 'ba_verification',  // Map to our ba_verification table
     },
   });
 }

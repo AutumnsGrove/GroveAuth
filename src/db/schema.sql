@@ -106,6 +106,24 @@ CREATE TABLE IF NOT EXISTS oauth_states (
     expires_at TEXT NOT NULL
 );
 
+-- Device authorization codes (RFC 8628)
+-- Used for CLI/device authentication flow where users approve access via browser
+CREATE TABLE IF NOT EXISTS device_codes (
+    id TEXT PRIMARY KEY,
+    device_code_hash TEXT UNIQUE NOT NULL,   -- SHA-256 hash for security
+    user_code TEXT UNIQUE NOT NULL,           -- Human-readable code (plaintext for lookup)
+    client_id TEXT NOT NULL,
+    scope TEXT,
+    status TEXT DEFAULT 'pending',            -- pending, authorized, denied, expired
+    user_id TEXT,                             -- NULL until user authorizes
+    poll_count INTEGER DEFAULT 0,
+    last_poll_at INTEGER,
+    interval INTEGER DEFAULT 5,
+    expires_at INTEGER NOT NULL,
+    created_at INTEGER DEFAULT (unixepoch()),
+    FOREIGN KEY (user_id) REFERENCES users(id)
+);
+
 -- Indexes for performance
 CREATE INDEX IF NOT EXISTS idx_auth_codes_expires ON auth_codes(expires_at);
 CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user ON refresh_tokens(user_id);
@@ -115,3 +133,7 @@ CREATE INDEX IF NOT EXISTS idx_magic_codes_expires ON magic_codes(expires_at);
 CREATE INDEX IF NOT EXISTS idx_audit_log_user ON audit_log(user_id);
 CREATE INDEX IF NOT EXISTS idx_audit_log_created ON audit_log(created_at);
 CREATE INDEX IF NOT EXISTS idx_oauth_states_expires ON oauth_states(expires_at);
+CREATE INDEX IF NOT EXISTS idx_device_codes_user_code ON device_codes(user_code);
+CREATE INDEX IF NOT EXISTS idx_device_codes_hash ON device_codes(device_code_hash);
+CREATE INDEX IF NOT EXISTS idx_device_codes_expires ON device_codes(expires_at);
+CREATE INDEX IF NOT EXISTS idx_device_codes_status ON device_codes(status);

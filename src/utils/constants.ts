@@ -62,3 +62,13 @@ export const GOOGLE_SCOPES = ['openid', 'email', 'profile'];
 // JWT settings
 export const JWT_ALGORITHM = 'RS256';
 export const JWT_ISSUER = 'https://auth.grove.place';
+
+// Device Code Flow (RFC 8628)
+export const DEVICE_CODE_EXPIRY = 900; // 15 minutes in seconds
+export const DEVICE_CODE_POLL_INTERVAL = 5; // Minimum seconds between polls
+export const DEVICE_CODE_SLOW_DOWN_INCREMENT = 5; // Seconds added when slow_down triggered
+// Character set: No vowels (avoid profanity), no confusables (0/O, 1/I/L)
+export const DEVICE_CODE_CHARS = 'BCDFGHJKLMNPQRSTVWXZ23456789';
+export const USER_CODE_LENGTH = 8; // Format: XXXX-XXXX (displayed with hyphen)
+export const RATE_LIMIT_DEVICE_INIT = 10; // Per minute per IP
+export const RATE_LIMIT_DEVICE_POLL = 12; // Per minute per device_code

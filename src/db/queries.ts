@@ -22,6 +22,7 @@ import type {
   UserClientPreference,
   AdminStats,
   D1DatabaseOrSession,
+  DeviceCode,
 } from '../types.js';
 import { TIER_POST_LIMITS, ADMIN_EMAILS } from '../types.js';
 import { generateUUID } from '../utils/crypto.js';
@@ -879,4 +880,171 @@ export async function getAuditLogs(
 
   const result = await db.prepare(query).bind(...params).all<AuditLog>();
   return result.results || [];
+}
+
+// ==================== Device Codes (RFC 8628) ====================
+
+/**
+ * Create a new device code record
+ * Note: device_code should already be hashed before passing to this function
+ */
+export async function createDeviceCode(
+  db: D1DatabaseOrSession,
+  data: {
+    device_code_hash: string;
+    user_code: string;
+    client_id: string;
+    scope?: string;
+    expires_at: number;
+    interval: number;
+  }
+): Promise<string> {
+  const id = generateUUID();
+  const now = Math.floor(Date.now() / 1000);
+
+  await db
+    .prepare(
+      `INSERT INTO device_codes (id, device_code_hash, user_code, client_id, scope, expires_at, interval, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+    )
+    .bind(
+      id,
+      data.device_code_hash,
+      data.user_code,
+      data.client_id,
+      data.scope || null,
+      data.expires_at,
+      data.interval,
+      now
+    )
+    .run();
+
+  return id;
+}
+
+/**
+ * Get device code by user code (for authorization UI)
+ * User codes are stored in plaintext for case-insensitive lookup
+ */
+export async function getDeviceCodeByUserCode(
+  db: D1DatabaseOrSession,
+  userCode: string
+): Promise<DeviceCode | null> {
+  // Normalize: remove hyphens and convert to uppercase
+  const normalizedCode = userCode.replace(/[-\s]/g, '').toUpperCase();
+
+  // User codes are stored with hyphen format (XXXX-XXXX)
+  // Try both formats for flexibility
+  const formattedCode = normalizedCode.length === 8
+    ? `${normalizedCode.slice(0, 4)}-${normalizedCode.slice(4)}`
+    : userCode;
+
+  const result = await db
+    .prepare('SELECT * FROM device_codes WHERE user_code = ? OR user_code = ?')
+    .bind(formattedCode, userCode)
+    .first<DeviceCode>();
+
+  return result;
+}
+
+/**
+ * Get device code by hashed device code (for polling)
+ */
+export async function getDeviceCodeByHash(
+  db: D1DatabaseOrSession,
+  deviceCodeHash: string
+): Promise<DeviceCode | null> {
+  const result = await db
+    .prepare('SELECT * FROM device_codes WHERE device_code_hash = ?')
+    .bind(deviceCodeHash)
+    .first<DeviceCode>();
+
+  return result;
+}
+
+/**
+ * Authorize a device code (user approved)
+ */
+export async function authorizeDeviceCode(
+  db: D1DatabaseOrSession,
+  id: string,
+  userId: string
+): Promise<void> {
+  await db
+    .prepare(`UPDATE device_codes SET status = 'authorized', user_id = ? WHERE id = ?`)
+    .bind(userId, id)
+    .run();
+}
+
+/**
+ * Deny a device code (user denied)
+ */
+export async function denyDeviceCode(db: D1DatabaseOrSession, id: string): Promise<void> {
+  await db.prepare(`UPDATE device_codes SET status = 'denied' WHERE id = ?`).bind(id).run();
+}
+
+/**
+ * Update device code poll tracking
+ * Returns the updated device code
+ */
+export async function updateDevicePollCount(
+  db: D1DatabaseOrSession,
+  id: string
+): Promise<DeviceCode | null> {
+  const now = Math.floor(Date.now() / 1000);
+
+  await db
+    .prepare(`UPDATE device_codes SET poll_count = poll_count + 1, last_poll_at = ? WHERE id = ?`)
+    .bind(now, id)
+    .run();
+
+  return db.prepare('SELECT * FROM device_codes WHERE id = ?').bind(id).first<DeviceCode>();
+}
+
+/**
+ * Increment the required poll interval (for slow_down response)
+ */
+export async function incrementDeviceInterval(
+  db: D1DatabaseOrSession,
+  id: string,
+  incrementBy: number
+): Promise<void> {
+  await db
+    .prepare(`UPDATE device_codes SET interval = interval + ? WHERE id = ?`)
+    .bind(incrementBy, id)
+    .run();
+}
+
+/**
+ * Mark device code as expired
+ */
+export async function expireDeviceCode(db: D1DatabaseOrSession, id: string): Promise<void> {
+  await db.prepare(`UPDATE device_codes SET status = 'expired' WHERE id = ?`).bind(id).run();
+}
+
+/**
+ * Check if user code is unique (for generation)
+ */
+export async function isUserCodeUnique(db: D1DatabaseOrSession, userCode: string): Promise<boolean> {
+  const result = await db
+    .prepare('SELECT 1 FROM device_codes WHERE user_code = ?')
+    .bind(userCode)
+    .first();
+
+  return result === null;
+}
+
+/**
+ * Cleanup expired device codes
+ */
+export async function cleanupExpiredDeviceCodes(db: D1DatabaseOrSession): Promise<void> {
+  const now = Math.floor(Date.now() / 1000);
+  await db.prepare('DELETE FROM device_codes WHERE expires_at < ?').bind(now).run();
+}
+
+/**
+ * Delete a specific device code (after successful token exchange)
+ */
+export async function deleteDeviceCode(db: D1DatabaseOrSession, id: string): Promise<void> {
+  await db.prepare('DELETE FROM device_codes WHERE id = ?').bind(id).run();
 }

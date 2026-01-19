@@ -84,3 +84,15 @@ export function parseFormData(body: string): Record<string, string> {
   }
   return result;
 }
+
+// Device code initiation request validation (RFC 8628)
+export const deviceCodeInitSchema = z.object({
+  client_id: z.string().min(1, 'client_id is required'),
+  scope: z.string().optional(),
+});
+
+// Device code authorization request validation (user approving/denying)
+export const deviceAuthorizeSchema = z.object({
+  user_code: z.string().min(1, 'user_code is required'),
+  action: z.enum(['approve', 'deny']),
+});

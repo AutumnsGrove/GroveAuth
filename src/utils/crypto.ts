@@ -133,3 +133,41 @@ export function generateAuthCode(): string {
 export function generateRefreshToken(): string {
   return generateRandomString(48);
 }
+
+/**
+ * Generate a secure device code (RFC 8628)
+ * Returns a 32-byte random string, base64url encoded
+ */
+export function generateDeviceCode(): string {
+  return generateRandomString(32);
+}
+
+/**
+ * Generate a human-readable user code for device authorization (RFC 8628)
+ * Format: XXXX-XXXX using a restricted character set
+ * - No vowels (avoid profanity)
+ * - No confusable characters (0/O, 1/I/L)
+ */
+export function generateUserCode(charset: string, length: number): string {
+  const bytes = new Uint8Array(length);
+  crypto.getRandomValues(bytes);
+
+  let code = '';
+  for (let i = 0; i < length; i++) {
+    code += charset[bytes[i] % charset.length];
+  }
+
+  // Format as XXXX-XXXX for readability
+  if (length === 8) {
+    return `${code.slice(0, 4)}-${code.slice(4)}`;
+  }
+  return code;
+}
+
+/**
+ * Normalize user code input for comparison
+ * Removes hyphens/spaces and converts to uppercase
+ */
+export function normalizeUserCode(code: string): string {
+  return code.replace(/[-\s]/g, '').toUpperCase();
+}

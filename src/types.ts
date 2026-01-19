@@ -105,6 +105,24 @@ export interface MagicCode {
   created_at: string;
 }
 
+// Device authorization code (RFC 8628)
+export interface DeviceCode {
+  id: string;
+  device_code_hash: string;
+  user_code: string;
+  client_id: string;
+  scope: string | null;
+  status: DeviceCodeStatus;
+  user_id: string | null;
+  poll_count: number;
+  last_poll_at: number | null;
+  interval: number;
+  expires_at: number;
+  created_at: number;
+}
+
+export type DeviceCodeStatus = 'pending' | 'authorized' | 'denied' | 'expired';
+
 export interface RateLimit {
   key: string;
   count: number;
@@ -140,7 +158,11 @@ export type AuditEventType =
   | 'token_refresh'
   | 'token_revoke'
   | 'magic_code_sent'
-  | 'magic_code_verified';
+  | 'magic_code_verified'
+  | 'device_code_created'
+  | 'device_code_authorized'
+  | 'device_code_denied'
+  | 'device_code_polled';
 
 // API Request/Response Types
 export interface LoginParams {
@@ -152,13 +174,14 @@ export interface LoginParams {
 }
 
 export interface TokenRequest {
-  grant_type: 'authorization_code' | 'refresh_token';
+  grant_type: 'authorization_code' | 'refresh_token' | 'urn:ietf:params:oauth:grant-type:device_code';
   code?: string;
   redirect_uri?: string;
   client_id: string;
   client_secret: string;
   code_verifier?: string;
   refresh_token?: string;
+  device_code?: string;
 }
 
 export interface TokenResponse {
@@ -167,6 +190,16 @@ export interface TokenResponse {
   expires_in: number;
   refresh_token: string;
   scope: string;
+}
+
+// Device Authorization Response (RFC 8628 Section 3.2)
+export interface DeviceCodeResponse {
+  device_code: string;
+  user_code: string;
+  verification_uri: string;
+  verification_uri_complete: string;
+  expires_in: number;
+  interval: number;
 }
 
 export interface TokenInfo {

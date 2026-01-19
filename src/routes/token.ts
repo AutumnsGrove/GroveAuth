@@ -11,6 +11,11 @@ import {
   createRefreshToken,
   getRefreshTokenByHash,
   revokeRefreshToken,
+  getDeviceCodeByHash,
+  updateDevicePollCount,
+  incrementDeviceInterval,
+  deleteDeviceCode,
+  createAuditLog,
 } from '../db/queries.js';
 import { createDbSession } from '../db/session.js';
 import { parseFormData } from '../utils/validation.js';
@@ -28,6 +33,7 @@ import {
   ACCESS_TOKEN_EXPIRY,
   REFRESH_TOKEN_EXPIRY,
   RATE_LIMIT_TOKEN_PER_CLIENT,
+  DEVICE_CODE_SLOW_DOWN_INCREMENT,
 } from '../utils/constants.js';
 
 const token = new Hono<{ Bindings: Env }>();
@@ -49,6 +55,8 @@ token.post('/', async (c) => {
     return handleAuthorizationCodeGrant(c, params, db);
   } else if (grantType === 'refresh_token') {
     return handleRefreshTokenGrant(c, params, db);
+  } else if (grantType === 'urn:ietf:params:oauth:grant-type:device_code') {
+    return handleDeviceCodeGrant(c, params, db);
   } else {
     return c.json(
       { error: 'unsupported_grant_type', error_description: 'Grant type not supported' },
@@ -328,6 +336,138 @@ async function handleRefreshTokenGrant(
     expires_in: ACCESS_TOKEN_EXPIRY,
     refresh_token: newRefreshToken,
     scope: 'openid email profile',
+  };
+
+  return c.json(response);
+}
+
+/**
+ * Handle urn:ietf:params:oauth:grant-type:device_code grant type (RFC 8628)
+ *
+ * This is called by the CLI to poll for authorization status.
+ * Returns tokens when user approves, or appropriate error codes otherwise.
+ */
+async function handleDeviceCodeGrant(
+  c: Context<{ Bindings: Env }>,
+  params: Record<string, string>,
+  db: ReturnType<D1Database['withSession']>
+) {
+  const { device_code, client_id } = params;
+
+  if (!device_code || !client_id) {
+    return c.json(
+      { error: 'invalid_request', error_description: 'Missing required parameters' },
+      400
+    );
+  }
+
+  // Validate client exists (no secret required for device flow per RFC 8628)
+  const client = await getClientByClientId(db, client_id);
+  if (!client) {
+    return c.json({ error: 'invalid_client', error_description: 'Client not found' }, 401);
+  }
+
+  // Hash the device code to look it up
+  const deviceCodeHash = await hashSecret(device_code);
+  const deviceCodeRecord = await getDeviceCodeByHash(db, deviceCodeHash);
+
+  if (!deviceCodeRecord) {
+    return c.json({ error: 'invalid_grant', error_description: 'Invalid device code' }, 400);
+  }
+
+  // Verify client_id matches
+  if (deviceCodeRecord.client_id !== client_id) {
+    return c.json({ error: 'invalid_grant', error_description: 'Client mismatch' }, 400);
+  }
+
+  const now = Math.floor(Date.now() / 1000);
+
+  // Check if code has expired
+  if (deviceCodeRecord.expires_at < now) {
+    return c.json({ error: 'expired_token', error_description: 'Device code has expired' }, 400);
+  }
+
+  // Check polling rate (slow_down detection)
+  // If last_poll_at exists and was too recent, return slow_down and increase interval
+  if (deviceCodeRecord.last_poll_at) {
+    const timeSinceLastPoll = now - deviceCodeRecord.last_poll_at;
+    if (timeSinceLastPoll < deviceCodeRecord.interval) {
+      // Polling too fast - increment the required interval
+      await incrementDeviceInterval(db, deviceCodeRecord.id, DEVICE_CODE_SLOW_DOWN_INCREMENT);
+      return c.json({
+        error: 'slow_down',
+        error_description: `Poll interval increased to ${deviceCodeRecord.interval + DEVICE_CODE_SLOW_DOWN_INCREMENT} seconds`,
+        interval: deviceCodeRecord.interval + DEVICE_CODE_SLOW_DOWN_INCREMENT,
+      }, 400);
+    }
+  }
+
+  // Update poll count and last_poll_at
+  await updateDevicePollCount(db, deviceCodeRecord.id);
+
+  // Check authorization status
+  switch (deviceCodeRecord.status) {
+    case 'pending':
+      return c.json({ error: 'authorization_pending', error_description: 'User has not yet authorized' }, 400);
+
+    case 'denied':
+      // Delete the device code record
+      await deleteDeviceCode(db, deviceCodeRecord.id);
+      return c.json({ error: 'access_denied', error_description: 'User denied the authorization request' }, 400);
+
+    case 'expired':
+      return c.json({ error: 'expired_token', error_description: 'Device code has expired' }, 400);
+
+    case 'authorized':
+      // User approved - issue tokens
+      break;
+
+    default:
+      return c.json({ error: 'server_error', error_description: 'Invalid device code status' }, 500);
+  }
+
+  // Get the user who authorized
+  if (!deviceCodeRecord.user_id) {
+    return c.json({ error: 'server_error', error_description: 'Authorization incomplete' }, 500);
+  }
+
+  const user = await getUserById(db, deviceCodeRecord.user_id);
+  if (!user) {
+    return c.json({ error: 'invalid_grant', error_description: 'User not found' }, 400);
+  }
+
+  // Generate tokens
+  const accessToken = await createAccessToken(c.env, user, client_id);
+  const refreshToken = generateRefreshToken();
+  const refreshTokenHash = await hashSecret(refreshToken);
+  const refreshExpiresAt = new Date(Date.now() + REFRESH_TOKEN_EXPIRY * 1000).toISOString();
+
+  await createRefreshToken(db, {
+    token_hash: refreshTokenHash,
+    user_id: user.id,
+    client_id: client_id,
+    expires_at: refreshExpiresAt,
+  });
+
+  // Log the device code token exchange
+  await createAuditLog(db, {
+    event_type: 'device_code_polled',
+    user_id: user.id,
+    client_id,
+    ip_address: getClientIP(c.req.raw),
+    user_agent: getUserAgent(c.req.raw),
+    details: { action: 'token_issued', user_code: deviceCodeRecord.user_code },
+  });
+
+  // Delete the device code record (one-time use)
+  await deleteDeviceCode(db, deviceCodeRecord.id);
+
+  const response: TokenResponse = {
+    access_token: accessToken,
+    token_type: 'Bearer',
+    expires_in: ACCESS_TOKEN_EXPIRY,
+    refresh_token: refreshToken,
+    scope: deviceCodeRecord.scope || 'openid email profile',
   };
 
   return c.json(response);

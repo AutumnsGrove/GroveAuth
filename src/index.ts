@@ -25,6 +25,7 @@ import cdn from './routes/cdn.js';
 import betterAuth from './routes/betterAuth.js';
 import settings from './routes/settings.js';
 import status from './routes/status.js';
+import device from './routes/device.js';
 
 // Create the main Hono app
 const app = new Hono<{ Bindings: Env }>();
@@ -38,6 +39,7 @@ app.route('/login', login);
 app.route('/oauth/google', google);
 app.route('/magic', magic);
 app.route('/token', tokenRoutes);
+app.route('/auth', device);
 
 // Verify routes - mount at root level for /verify, /userinfo, /logout
 app.get('/verify', async (c) => {
@@ -131,6 +133,12 @@ app.get('/', (c) => {
         exchange: 'POST /token',
         refresh: 'POST /token/refresh',
         revoke: 'POST /token/revoke',
+        deviceCode: 'POST /token (grant_type=urn:ietf:params:oauth:grant-type:device_code)',
+      },
+      deviceAuth: {
+        initiate: 'POST /auth/device-code',
+        authorize: 'GET /auth/device',
+        approve: 'POST /auth/device/authorize',
       },
       verify: 'GET /verify',
       userinfo: 'GET /userinfo',

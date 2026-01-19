@@ -22,9 +22,10 @@ import {
   createAuditLog,
   isEmailAllowed,
   cleanupExpiredDeviceCodes,
+  getUserById,
 } from '../db/queries.js';
 import { createDbSession } from '../db/session.js';
-import { createAuth } from '../auth/index.js';
+import { getSessionFromRequest } from '../lib/session.js';
 import {
   generateDeviceCode,
   generateUserCode,
@@ -163,7 +164,7 @@ device.post('/device-code', async (c) => {
  * GET /auth/device - Device Authorization Page
  *
  * User visits this page to enter the user_code and approve/deny.
- * Requires authenticated session via Better Auth.
+ * Requires authenticated session (grove_session cookie from Google OAuth).
  */
 device.get('/device', async (c) => {
   const db = createDbSession(c.env);
@@ -182,13 +183,23 @@ device.get('/device', async (c) => {
     }
   }
 
-  // Get session from Better Auth
-  const auth = createAuth(c.env, c.req.raw.cf);
-  const session = await auth.api.getSession({ headers: c.req.raw.headers });
+  // Get session from grove_session cookie (set by Google OAuth flow)
+  const parsedSession = await getSessionFromRequest(c.req.raw, c.env.SESSION_SECRET);
 
-  if (!session?.user) {
+  if (!parsedSession) {
     // Not logged in - redirect to login
     // Build return URL using AUTH_BASE_URL (not c.req.url) to avoid domain issues
+    const returnUrl = userCodeParam
+      ? `${c.env.AUTH_BASE_URL}/auth/device?user_code=${encodeURIComponent(userCodeParam)}`
+      : `${c.env.AUTH_BASE_URL}/auth/device`;
+    const loginUrl = `${c.env.AUTH_BASE_URL}/login?client_id=grove-cli&redirect_uri=${encodeURIComponent(c.env.AUTH_BASE_URL + '/auth/device')}&state=${encodeURIComponent(returnUrl)}`;
+    return c.redirect(loginUrl);
+  }
+
+  // Look up the user from the session
+  const user = await getUserById(db, parsedSession.userId);
+  if (!user) {
+    // Session references a user that doesn't exist - clear and redirect to login
     const returnUrl = userCodeParam
       ? `${c.env.AUTH_BASE_URL}/auth/device?user_code=${encodeURIComponent(userCodeParam)}`
       : `${c.env.AUTH_BASE_URL}/auth/device`;
@@ -229,7 +240,7 @@ device.get('/device', async (c) => {
   const html = getDeviceAuthorizationPageHTML({
     userCode: userCodeParam || '',
     clientName,
-    userName: session.user.name || session.user.email,
+    userName: user.name || user.email,
     error,
     showForm: !!deviceCode,
     authBaseUrl: c.env.AUTH_BASE_URL,
@@ -248,12 +259,17 @@ device.get('/device', async (c) => {
 device.post('/device/authorize', async (c) => {
   const db = createDbSession(c.env);
 
-  // Get session from Better Auth
-  const auth = createAuth(c.env, c.req.raw.cf);
-  const session = await auth.api.getSession({ headers: c.req.raw.headers });
+  // Get session from grove_session cookie (set by Google OAuth flow)
+  const parsedSession = await getSessionFromRequest(c.req.raw, c.env.SESSION_SECRET);
 
-  if (!session?.user) {
+  if (!parsedSession) {
     return c.json({ error: 'unauthorized', error_description: 'Authentication required' }, 401);
+  }
+
+  // Look up the user from the session
+  const user = await getUserById(db, parsedSession.userId);
+  if (!user) {
+    return c.json({ error: 'unauthorized', error_description: 'User not found' }, 401);
   }
 
   // Parse request body
@@ -306,7 +322,7 @@ device.post('/device/authorize', async (c) => {
 
   // Check if user's email is allowed (for allowlist enforcement)
   const publicSignupEnabled = c.env.PUBLIC_SIGNUP_ENABLED === 'true';
-  const allowed = await isEmailAllowed(db, session.user.email, publicSignupEnabled);
+  const allowed = await isEmailAllowed(db, user.email, publicSignupEnabled);
   if (!allowed) {
     return c.json(
       { error: 'access_denied', error_description: 'Your account is not authorized for this action' },
@@ -319,11 +335,11 @@ device.post('/device/authorize', async (c) => {
 
   if (action === 'approve') {
     // Authorize the device code
-    await authorizeDeviceCode(db, deviceCode.id, session.user.id);
+    await authorizeDeviceCode(db, deviceCode.id, user.id);
 
     await createAuditLog(db, {
       event_type: 'device_code_authorized',
-      user_id: session.user.id,
+      user_id: user.id,
       client_id: deviceCode.client_id,
       ip_address: clientIP,
       user_agent: userAgent,
@@ -343,7 +359,7 @@ device.post('/device/authorize', async (c) => {
 
     await createAuditLog(db, {
       event_type: 'device_code_denied',
-      user_id: session.user.id,
+      user_id: user.id,
       client_id: deviceCode.client_id,
       ip_address: clientIP,
       user_agent: userAgent,

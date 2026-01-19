@@ -5,7 +5,8 @@
 
 -- Grove CLI client for device authorization grant
 -- No client_secret needed for public clients (CLI tools)
--- Redirect URI needed for post-login return to device authorization page
+-- Marked as internal service so Google OAuth just sets session cookie
+-- (device code flow handles its own token exchange, we just need session for approval)
 INSERT INTO clients (
     id,
     name,
@@ -25,7 +26,7 @@ INSERT INTO clients (
     '["https://auth-api.grove.place/auth/device"]',  -- Device authorization page
     '[]',  -- No CORS needed for CLI
     NULL,  -- No domain restriction
-    0,     -- Not an internal service
+    1,     -- Internal service: uses session cookie, not OAuth code flow
     datetime('now'),
     datetime('now')
 ) ON CONFLICT(client_id) DO NOTHING;

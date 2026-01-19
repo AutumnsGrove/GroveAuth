@@ -168,22 +168,36 @@ device.post('/device-code', async (c) => {
 device.get('/device', async (c) => {
   const db = createDbSession(c.env);
 
+  // Get user_code from query params or from state (after OAuth redirect)
+  let userCodeParam = c.req.query('user_code');
+  const stateParam = c.req.query('state');
+
+  // After OAuth redirect, user_code might be encoded in state
+  if (!userCodeParam && stateParam) {
+    try {
+      const stateUrl = new URL(decodeURIComponent(stateParam));
+      userCodeParam = stateUrl.searchParams.get('user_code') || undefined;
+    } catch {
+      // State wasn't a URL, ignore
+    }
+  }
+
   // Get session from Better Auth
   const auth = createAuth(c.env, c.req.raw.cf);
   const session = await auth.api.getSession({ headers: c.req.raw.headers });
 
   if (!session?.user) {
-    // Not logged in - redirect to login with return URL
-    const returnUrl = encodeURIComponent(c.req.url);
-    const loginUrl = `${c.env.AUTH_BASE_URL}/login?client_id=grove-cli&redirect_uri=${c.env.AUTH_BASE_URL}/auth/device&state=${returnUrl}`;
+    // Not logged in - redirect to login
+    // Build return URL using AUTH_BASE_URL (not c.req.url) to avoid domain issues
+    const returnUrl = userCodeParam
+      ? `${c.env.AUTH_BASE_URL}/auth/device?user_code=${encodeURIComponent(userCodeParam)}`
+      : `${c.env.AUTH_BASE_URL}/auth/device`;
+    const loginUrl = `${c.env.AUTH_BASE_URL}/login?client_id=grove-cli&redirect_uri=${encodeURIComponent(c.env.AUTH_BASE_URL + '/auth/device')}&state=${encodeURIComponent(returnUrl)}`;
     return c.redirect(loginUrl);
   }
 
   // Check for success state from redirect
   const successParam = c.req.query('success') as 'approved' | 'denied' | null;
-
-  // Check if user_code provided in query params
-  const userCodeParam = c.req.query('user_code');
   let deviceCode = null;
   let error = null;
 

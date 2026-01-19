@@ -136,7 +136,8 @@ export async function createSessionCookieHeader(
   maxAgeSeconds: number = 7 * 24 * 60 * 60 // 7 days
 ): Promise<string> {
   const value = await createSessionCookie(sessionId, userId, secret);
-  return `grove_session=${value}; Path=/; HttpOnly; Secure; SameSite=Strict; Domain=.grove.place; Max-Age=${maxAgeSeconds}`;
+  // SameSite=Lax required for OAuth redirects (Google → our callback → device page)
+  return `grove_session=${value}; Path=/; HttpOnly; Secure; SameSite=Lax; Domain=.grove.place; Max-Age=${maxAgeSeconds}`;
 }
 
 /**

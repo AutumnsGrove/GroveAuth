@@ -5,7 +5,7 @@
 
 -- Grove CLI client for device authorization grant
 -- No client_secret needed for public clients (CLI tools)
--- Device code flow doesn't use redirects, but we set safe defaults
+-- Redirect URI needed for post-login return to device authorization page
 INSERT INTO clients (
     id,
     name,
@@ -22,7 +22,7 @@ INSERT INTO clients (
     'Grove CLI',
     'grove-cli',
     '',  -- Public client, no secret required for device flow
-    '[]',  -- No redirects for device flow
+    '["https://auth-api.grove.place/auth/device"]',  -- Device authorization page
     '[]',  -- No CORS needed for CLI
     NULL,  -- No domain restriction
     0,     -- Not an internal service

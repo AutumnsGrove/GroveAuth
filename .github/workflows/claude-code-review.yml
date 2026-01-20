@@ -36,6 +36,8 @@ jobs:
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # Allow gh commands for posting PR comments
+          allowed_tools: "Bash(gh pr:*),Bash(gh api:*),Read,Glob,Grep"
           # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
           # or https://code.claude.com/docs/en/cli-reference for available options
           prompt: |

@@ -53,10 +53,12 @@ login.get('/', async (c) => {
   }
 
   // Validate redirect_uri is registered for this client
+  // Pass ENGINE_DB for wildcard tenant validation (*.grove.place subdomains)
   const validRedirect = await validateClientRedirectUri(
     db,
     validParams.client_id,
-    validParams.redirect_uri
+    validParams.redirect_uri,
+    c.env.ENGINE_DB
   );
   if (!validRedirect) {
     return c.html(

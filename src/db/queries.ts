@@ -27,6 +27,51 @@ import type {
 import { TIER_POST_LIMITS, ADMIN_EMAILS } from '../types.js';
 import { generateUUID } from '../utils/crypto.js';
 
+// ==================== Wildcard Redirect URI Configuration ====================
+
+/**
+ * Wildcard configuration for multi-tenant clients.
+ * Maps client_id to pattern config for dynamic redirect URI validation.
+ */
+const WILDCARD_CLIENTS: Record<string, { pattern: RegExp; baseDomain: string }> = {
+  groveengine: {
+    // Matches https://{subdomain}.grove.place/auth/callback
+    // Subdomain must be alphanumeric with hyphens only (no dots/nested subdomains)
+    pattern: /^https:\/\/([a-z0-9-]+)\.grove\.place\/auth\/callback$/i,
+    baseDomain: 'grove.place',
+  },
+};
+
+/**
+ * Extract subdomain from redirect URI matching a wildcard pattern.
+ * Returns null if the client doesn't support wildcards or URI doesn't match pattern.
+ */
+export function extractSubdomainFromRedirectUri(
+  clientId: string,
+  redirectUri: string
+): string | null {
+  const config = WILDCARD_CLIENTS[clientId];
+  if (!config) return null;
+
+  const match = redirectUri.match(config.pattern);
+  return match ? match[1].toLowerCase() : null;
+}
+
+/**
+ * Check if a subdomain exists as an active tenant in GroveEngine.
+ * This prevents redirect hijacking to non-existent or suspended tenants.
+ */
+export async function isActiveTenant(
+  engineDb: D1Database,
+  subdomain: string
+): Promise<boolean> {
+  const result = await engineDb
+    .prepare('SELECT 1 FROM tenants WHERE subdomain = ? AND active = 1')
+    .bind(subdomain.toLowerCase())
+    .first<{ 1: number }>();
+  return result !== null;
+}
+
 // ==================== Clients ====================
 
 export async function getClientByClientId(
@@ -40,16 +85,42 @@ export async function getClientByClientId(
   return result;
 }
 
+/**
+ * Validate that a redirect URI is allowed for a client.
+ *
+ * Validation order:
+ * 1. Exact match against registered redirect_uris (backward compatible)
+ * 2. For supported clients (e.g., groveengine): wildcard subdomain validation
+ *    - Extract subdomain from URI pattern (e.g., autumn.grove.place)
+ *    - Verify subdomain exists as active tenant in GroveEngine DB
+ *
+ * @param db - Heartwood database connection
+ * @param clientId - The OAuth client ID
+ * @param redirectUri - The redirect URI to validate
+ * @param engineDb - Optional GroveEngine database for wildcard tenant validation
+ */
 export async function validateClientRedirectUri(
   db: D1DatabaseOrSession,
   clientId: string,
-  redirectUri: string
+  redirectUri: string,
+  engineDb?: D1Database
 ): Promise<boolean> {
   const client = await getClientByClientId(db, clientId);
   if (!client) return false;
 
+  // First, check exact match (backward compatible)
   const allowedUris: string[] = JSON.parse(client.redirect_uris);
-  return allowedUris.includes(redirectUri);
+  if (allowedUris.includes(redirectUri)) {
+    return true;
+  }
+
+  // Check if this client supports wildcard validation
+  const subdomain = extractSubdomainFromRedirectUri(clientId, redirectUri);
+  if (subdomain && engineDb) {
+    return isActiveTenant(engineDb, subdomain);
+  }
+
+  return false;
 }
 
 export async function validateClientOrigin(

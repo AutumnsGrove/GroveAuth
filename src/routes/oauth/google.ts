@@ -60,10 +60,12 @@ google.get('/', async (c) => {
   }
 
   // Validate redirect URI
+  // Pass ENGINE_DB for wildcard tenant validation (*.grove.place subdomains)
   const validRedirect = await validateClientRedirectUri(
     db,
     validParams.client_id,
-    validParams.redirect_uri
+    validParams.redirect_uri,
+    c.env.ENGINE_DB
   );
   if (!validRedirect) {
     return c.json({ error: 'invalid_request', error_description: 'Invalid redirect_uri' }, 400);

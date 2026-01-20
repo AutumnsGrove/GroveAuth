@@ -36,9 +36,34 @@ jobs:
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          plugin_marketplaces: 'https://github.com/anthropics/claude-code.git'
-          plugins: 'code-review@claude-code-plugins'
-          prompt: '/code-review:code-review ${{ github.repository }}/pull/${{ github.event.pull_request.number }}'
           # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
           # or https://code.claude.com/docs/en/cli-reference for available options
+          prompt: |
+            Review this PR with a security-first mindset for an OAuth/authentication service.
+
+            **Project Context:**
+            - Heartwood is a centralized auth service (Cloudflare Workers + D1 + Hono)
+            - Handles OAuth 2.0 with PKCE, Magic Link codes, JWT tokens (RS256)
+            - Admin-only access via allowlist - no public registration
+
+            **Security Review Checklist:**
+            - [ ] JWT handling: proper validation, no secrets in payload, correct algorithms, expiry checks
+            - [ ] OAuth flows: PKCE enforcement, state parameter validation, redirect URI validation
+            - [ ] Input validation: all user inputs sanitized, Zod schemas used where appropriate
+            - [ ] SQL injection: parameterized queries only for D1, no string concatenation
+            - [ ] Rate limiting: sensitive endpoints (login, token, magic code) must be protected
+            - [ ] Timing attacks: constant-time comparisons for secrets/tokens/codes
+            - [ ] Error messages: no sensitive info leaked (no stack traces, no user enumeration)
+            - [ ] Audit logging: auth events properly logged for security monitoring
+            - [ ] CSRF protection: proper token validation on state-changing operations
+            - [ ] Redirect validation: no open redirects, allowlist-based redirect URIs
+
+            **Also check:**
+            - CLAUDE.md / AGENT.md compliance
+            - No hardcoded secrets, API keys, or credentials
+            - Proper error handling without exposing internals
+            - Token/session invalidation handled correctly
+            - Secure cookie attributes (HttpOnly, Secure, SameSite)
+
+            Provide specific file:line references for any issues found. Categorize findings by severity (Critical, High, Medium, Low).
 

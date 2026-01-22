@@ -30,6 +30,9 @@ Thumbs.db
 npm-debug.log*
 pnpm-debug.log*
 
+# Python
+__pycache__/
+
 # Test coverage
 coverage/
 .nyc_output/
@@ -39,7 +42,8 @@ coverage/
 *.tsbuildinfo
 
 # Claude/AI
-.claude/
+.claude/*
+!.claude/skills/
 
 # Misc
 *.bak

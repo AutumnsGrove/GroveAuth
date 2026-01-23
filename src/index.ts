@@ -209,4 +209,10 @@ app.onError((err, c) => {
 // Export SessionDO for Cloudflare Workers runtime
 export { SessionDO } from './durables/SessionDO.js';
 
-export default app;
+export default {
+  fetch: (request: Request, env: Env, ctx: ExecutionContext) => app.fetch(request, env, ctx),
+  scheduled: async (_controller: ScheduledController, env: Env, _ctx: ExecutionContext) => {
+    // Keepalive: warm the D1 connection so real auth requests never hit cold-start latency
+    await env.DB.prepare('SELECT 1').first();
+  },
+};

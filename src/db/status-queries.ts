@@ -1,5 +1,3 @@
-import type { D1DatabaseOrSession } from '../types.js';
-
 // TypeScript types
 interface Incident {
 	id: string;
@@ -77,8 +75,8 @@ export async function getIncidents(
 
 	query += ' ORDER BY started_at DESC LIMIT 100';
 
-	const result = await db.prepare(query).all();
-	return result.results as Incident[];
+	const result = await db.prepare(query).all<Incident>();
+	return result.results;
 }
 
 // Get incident by ID with full timeline
@@ -104,7 +102,7 @@ export async function getIncidentById(
     `
 		)
 		.bind(id)
-		.all();
+		.all<Update>();
 
 	// Get affected components
 	const components = await db
@@ -117,12 +115,12 @@ export async function getIncidentById(
     `
 		)
 		.bind(id)
-		.all();
+		.all<{ name: string; slug: string }>();
 
 	return {
 		...incident,
-		updates: updates.results as Update[],
-		components: components.results as { name: string; slug: string }[],
+		updates: updates.results,
+		components: components.results,
 	};
 }
 
@@ -293,9 +291,9 @@ export async function updateIncident(
 export async function getAllComponents(db: D1Database): Promise<Component[]> {
 	const result = await db
 		.prepare('SELECT * FROM status_components ORDER BY display_order')
-		.all();
+		.all<Component>();
 
-	return result.results as Component[];
+	return result.results;
 }
 
 // Update component status (manual override)
@@ -331,9 +329,9 @@ export async function getScheduledMaintenance(
       ORDER BY scheduled_start
     `
 		)
-		.all();
+		.all<ScheduledMaintenance>();
 
-	return result.results as ScheduledMaintenance[];
+	return result.results;
 }
 
 // Create scheduled maintenance

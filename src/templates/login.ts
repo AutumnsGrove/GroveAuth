@@ -14,7 +14,7 @@ interface LoginPageOptions {
 }
 
 export function getLoginPageHTML(options: LoginPageOptions): string {
-  const { error, errorDescription, clientName, params, authBaseUrl = '' } = options;
+  const { error, errorDescription, clientName, params } = options;
 
   // Build OAuth URLs with params
   const buildOAuthUrl = (provider: string) => {

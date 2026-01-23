@@ -29,8 +29,18 @@ const betterAuthRoutes = new Hono<{ Bindings: Env }>();
  */
 betterAuthRoutes.all('/*', async (c) => {
   try {
-    // Get Cloudflare context from the request (contains geolocation data)
-    const cf = c.req.raw.cf;
+    // Extract geolocation fields from Cloudflare request context
+    const rawCf = c.req.raw.cf;
+    const cf = rawCf ? {
+      timezone: rawCf.timezone as string | undefined,
+      city: rawCf.city as string | undefined,
+      country: rawCf.country as string | undefined,
+      region: rawCf.region as string | undefined,
+      regionCode: rawCf.regionCode as string | undefined,
+      colo: rawCf.colo as string | undefined,
+      latitude: rawCf.latitude as string | undefined,
+      longitude: rawCf.longitude as string | undefined,
+    } : undefined;
 
     console.log('[BetterAuth] Request:', c.req.method, c.req.path);
 

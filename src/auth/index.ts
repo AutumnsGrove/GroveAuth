@@ -13,10 +13,10 @@
 
 import { betterAuth } from 'better-auth';
 import { withCloudflare } from 'better-auth-cloudflare';
+import type { CloudflareGeolocation } from 'better-auth-cloudflare';
 import { magicLink, twoFactor } from 'better-auth/plugins';
 import { passkey } from '@better-auth/passkey';
 import { drizzle } from 'drizzle-orm/d1';
-import type { IncomingRequestCfProperties } from '@cloudflare/workers-types';
 import type { Env } from '../types.js';
 import { isEmailAllowed } from '../db/queries.js';
 import { createDbSession } from '../db/session.js';
@@ -90,7 +90,7 @@ Heartwood - Authentication for AutumnsGrove
  * @param cf - Cloudflare request context (for geolocation/IP detection)
  * @returns Configured Better Auth instance
  */
-export function createAuth(env: Env, cf?: IncomingRequestCfProperties) {
+export function createAuth(env: Env, cf?: CloudflareGeolocation) {
   // Create Drizzle instance for D1 with schema
   const db = drizzle(env.DB, { schema });
   const groveDb = createDbSession(env);
@@ -117,7 +117,7 @@ export function createAuth(env: Env, cf?: IncomingRequestCfProperties) {
         geolocationTracking: true,
         cf: cf || {},  // Cloudflare request context for geolocation
         d1: {
-          db,
+          db: db as any, // Bridge drizzle-orm version mismatch (0.45 vs 0.44)
           options: {
             usePlural: false, // ba_user, ba_session, etc. (not plural)
             debugLogs: true,  // Enable debug logging to see errors

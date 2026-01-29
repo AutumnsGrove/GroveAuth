@@ -208,6 +208,50 @@ app.onError((err, c) => {
 
 // Export SessionDO for Cloudflare Workers runtime
 export { SessionDO } from './durables/SessionDO.js';
+import type { SessionDO } from './durables/SessionDO.js';
+
+/**
+ * Warm SessionDOs for recently active users
+ * Queries the audit_log for recent logins and pings their SessionDOs
+ * This reduces cold start latency for returning users
+ */
+async function warmRecentSessionDOs(env: Env): Promise<void> {
+  try {
+    // Get unique user IDs from recent logins (last 5 minutes)
+    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+    const recentUsers = await env.DB.prepare(
+      `SELECT DISTINCT user_id FROM audit_log
+       WHERE event_type = 'login' AND user_id IS NOT NULL AND created_at > ?
+       LIMIT 20`
+    )
+      .bind(fiveMinutesAgo)
+      .all<{ user_id: string }>();
+
+    if (!recentUsers.results || recentUsers.results.length === 0) {
+      return;
+    }
+
+    // Warm each user's SessionDO by calling getSessionCount (lightweight operation)
+    const warmPromises = recentUsers.results.map(async ({ user_id }) => {
+      try {
+        const sessionDO = env.SESSIONS.get(
+          env.SESSIONS.idFromName(`session:${user_id}`)
+        ) as DurableObjectStub<SessionDO>;
+        // getSessionCount is a lightweight query that warms the DO
+        await sessionDO.getSessionCount();
+      } catch (error) {
+        // Silently ignore individual DO warm failures
+        console.warn(`[Keepalive] Failed to warm SessionDO for ${user_id}:`, error);
+      }
+    });
+
+    await Promise.all(warmPromises);
+    console.log(`[Keepalive] Warmed ${recentUsers.results.length} SessionDOs`);
+  } catch (error) {
+    // Don't let SessionDO warming failures break the keepalive
+    console.error('[Keepalive] Error warming SessionDOs:', error);
+  }
+}
 
 export default {
   fetch: (request: Request, env: Env, ctx: ExecutionContext) => app.fetch(request, env, ctx),
@@ -220,8 +264,9 @@ export default {
       env.ENGINE_DB.prepare('SELECT 1').first(),
       // Warm KV namespace (connection initialization)
       env.SESSION_KV.get('__keepalive__'),
+      // Warm SessionDOs for recently active users (reduces cold starts for returning users)
+      warmRecentSessionDOs(env),
     ]);
-    // Note: Durable Objects warm on first access per-user, can't pre-warm all instances
     // Note: Cron only warms ONE region; users in other regions may still see cold starts
   },
 };

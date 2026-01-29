@@ -271,6 +271,7 @@ export interface OAuthState {
   state: string;
   code_challenge?: string;
   code_challenge_method?: string;
+  is_internal_service?: boolean; // Cached from client to avoid re-fetch in callback
 }
 
 // Error types

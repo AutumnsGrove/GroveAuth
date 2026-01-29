@@ -7,7 +7,7 @@ import type { Env } from '../../types.js';
 import { createDbSession } from '../../db/session.js';
 import {
   getClientByClientId,
-  validateClientRedirectUri,
+  validateRedirectUriForClient,
   saveOAuthState,
   getOAuthState,
   deleteOAuthState,
@@ -59,11 +59,10 @@ google.get('/', async (c) => {
     return c.json({ error: 'invalid_client', error_description: 'Client not found' }, 400);
   }
 
-  // Validate redirect URI
+  // Validate redirect URI (reuse already-fetched client to avoid redundant DB query)
   // Pass ENGINE_DB for wildcard tenant validation (*.grove.place subdomains)
-  const validRedirect = await validateClientRedirectUri(
-    db,
-    validParams.client_id,
+  const validRedirect = await validateRedirectUriForClient(
+    client,
     validParams.redirect_uri,
     c.env.ENGINE_DB
   );
@@ -75,7 +74,7 @@ google.get('/', async (c) => {
   const internalState = generateRandomString(32);
   const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString(); // 10 minutes
 
-  // Save OAuth state
+  // Save OAuth state (cache is_internal_service to avoid re-fetch in callback)
   await saveOAuthState(db, {
     state: internalState,
     client_id: validParams.client_id,
@@ -84,6 +83,7 @@ google.get('/', async (c) => {
     code_challenge_method: validParams.code_challenge_method,
     original_state: validParams.state,
     expires_at: expiresAt,
+    is_internal_service: Boolean(client.is_internal_service),
   });
 
   // Build Google OAuth URL
@@ -95,8 +95,18 @@ google.get('/', async (c) => {
 
 /**
  * GET /oauth/google/callback - Handle Google OAuth callback
+ *
+ * Performance timing is logged to help identify bottlenecks.
+ * Expected timing breakdown:
+ * - Google token exchange: ~300-500ms (network)
+ * - Google userinfo fetch: ~200-400ms (network)
+ * - DB/DO operations: ~5-20ms total
  */
 google.get('/callback', async (c) => {
+  const timing: Record<string, number> = {};
+  const startTotal = performance.now();
+  let startOp = startTotal;
+
   const db = createDbSession(c.env);
 
   const code = c.req.query('code');
@@ -114,17 +124,23 @@ google.get('/callback', async (c) => {
   }
 
   // Get saved OAuth state
+  startOp = performance.now();
   const savedState = await getOAuthState(db, state);
+  timing.getOAuthState = performance.now() - startOp;
   if (!savedState) {
     return c.json({ error: 'invalid_state', error_description: 'State not found or expired' }, 400);
   }
 
   // Delete used state
+  startOp = performance.now();
   await deleteOAuthState(db, state);
+  timing.deleteOAuthState = performance.now() - startOp;
 
-  // Exchange code for tokens
+  // Exchange code for tokens (major latency: network call to Google)
+  startOp = performance.now();
   const callbackUrl = `${c.env.AUTH_BASE_URL}/oauth/google/callback`;
   const tokens = await exchangeGoogleCode(c.env, code, callbackUrl);
+  timing.googleTokenExchange = performance.now() - startOp;
 
   if (!tokens) {
     const errorRedirect = buildErrorRedirect(
@@ -136,8 +152,10 @@ google.get('/callback', async (c) => {
     return c.redirect(errorRedirect);
   }
 
-  // Get user info from Google
+  // Get user info from Google (major latency: network call to Google)
+  startOp = performance.now();
   const googleUser = await getGoogleUserInfo(tokens.access_token);
+  timing.googleUserInfo = performance.now() - startOp;
 
   if (!googleUser || !googleUser.email) {
     const errorRedirect = buildErrorRedirect(
@@ -150,6 +168,7 @@ google.get('/callback', async (c) => {
   }
 
   // Authenticate user (checks allowlist unless public signup is enabled)
+  startOp = performance.now();
   const user = await authenticateUser(
     db,
     {
@@ -166,6 +185,7 @@ google.get('/callback', async (c) => {
       publicSignupEnabled: c.env.PUBLIC_SIGNUP_ENABLED === 'true',
     }
   );
+  timing.authenticateUser = performance.now() - startOp;
 
   if (!user) {
     const errorRedirect = buildErrorRedirect(
@@ -178,6 +198,7 @@ google.get('/callback', async (c) => {
   }
 
   // Create session in SessionDO
+  startOp = performance.now();
   const sessionDO = c.env.SESSIONS.get(
     c.env.SESSIONS.idFromName(`session:${user.id}`)
   ) as DurableObjectStub<SessionDO>;
@@ -194,6 +215,7 @@ google.get('/callback', async (c) => {
     userAgent,
     expiresInSeconds: 7 * 24 * 60 * 60, // 7 days
   });
+  timing.sessionDOCreate = performance.now() - startOp;
 
   // Generate session cookie header
   const sessionCookieHeader = await createSessionCookieHeader(
@@ -202,10 +224,11 @@ google.get('/callback', async (c) => {
     c.env.SESSION_SECRET
   );
 
-  // Check if this is an internal service (like Mycelium)
+  // Check if this is an internal service (like Mycelium) using cached flag
   // Internal services use session cookie for authentication
-  const client = await getClientByClientId(db, savedState.client_id);
-  if (client?.is_internal_service) {
+  if (savedState.is_internal_service) {
+    timing.total = performance.now() - startTotal;
+    console.log('[OAuth/Google] Internal service callback timing:', JSON.stringify(timing));
     const redirect = buildInternalServiceRedirect(
       savedState.redirect_uri,
       savedState.state
@@ -220,6 +243,7 @@ google.get('/callback', async (c) => {
   }
 
   // Generate authorization code for the client (standard OAuth flow)
+  startOp = performance.now();
   const authCode = generateAuthCode();
   const expiresAt = new Date(Date.now() + AUTH_CODE_EXPIRY * 1000).toISOString();
 
@@ -232,6 +256,11 @@ google.get('/callback', async (c) => {
     code_challenge_method: savedState.code_challenge_method,
     expires_at: expiresAt,
   });
+  timing.createAuthCode = performance.now() - startOp;
+
+  // Log timing breakdown for performance analysis
+  timing.total = performance.now() - startTotal;
+  console.log('[OAuth/Google] Callback timing:', JSON.stringify(timing));
 
   // Redirect back to client with auth code and session cookie
   const successRedirect = buildSuccessRedirect(savedState.redirect_uri, authCode, savedState.state);

@@ -7,7 +7,7 @@ import type { Env } from '../types.js';
 import { createDbSession } from '../db/session.js';
 import {
   getClientByClientId,
-  validateClientRedirectUri,
+  validateRedirectUriForClient,
   isEmailAllowed,
   createMagicCode,
   getMagicCode,
@@ -93,9 +93,9 @@ magic.post('/send', async (c) => {
     return c.json({ error: 'invalid_client', message: 'Client not found' }, 400);
   }
 
-  // Validate redirect URI
+  // Validate redirect URI (reuse already-fetched client to avoid redundant DB query)
   // Pass ENGINE_DB for wildcard tenant validation (*.grove.place subdomains)
-  const validRedirect = await validateClientRedirectUri(db, client_id, redirect_uri, c.env.ENGINE_DB);
+  const validRedirect = await validateRedirectUriForClient(client, redirect_uri, c.env.ENGINE_DB);
   if (!validRedirect) {
     return c.json({ error: 'invalid_request', message: 'Invalid redirect_uri' }, 400);
   }
@@ -170,9 +170,9 @@ magic.post('/verify', async (c) => {
     return c.json({ error: 'invalid_client', message: 'Client not found' }, 400);
   }
 
-  // Validate redirect URI
+  // Validate redirect URI (reuse already-fetched client to avoid redundant DB query)
   // Pass ENGINE_DB for wildcard tenant validation (*.grove.place subdomains)
-  const validRedirect = await validateClientRedirectUri(db, client_id, redirect_uri, c.env.ENGINE_DB);
+  const validRedirect = await validateRedirectUriForClient(client, redirect_uri, c.env.ENGINE_DB);
   if (!validRedirect) {
     return c.json({ error: 'invalid_request', message: 'Invalid redirect_uri' }, 400);
   }

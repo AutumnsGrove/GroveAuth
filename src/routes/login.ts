@@ -4,7 +4,7 @@
 
 import { Hono } from 'hono';
 import type { Env, LoginParams } from '../types.js';
-import { getClientByClientId, validateClientRedirectUri } from '../db/queries.js';
+import { getClientByClientId, validateRedirectUriForClient } from '../db/queries.js';
 import { createDbSession } from '../db/session.js';
 import { loginParamsSchema } from '../utils/validation.js';
 import { getLoginPageHTML } from '../templates/login.js';
@@ -52,11 +52,10 @@ login.get('/', async (c) => {
     );
   }
 
-  // Validate redirect_uri is registered for this client
+  // Validate redirect_uri is registered for this client (reuse already-fetched client)
   // Pass ENGINE_DB for wildcard tenant validation (*.grove.place subdomains)
-  const validRedirect = await validateClientRedirectUri(
-    db,
-    validParams.client_id,
+  const validRedirect = await validateRedirectUriForClient(
+    client,
     validParams.redirect_uri,
     c.env.ENGINE_DB
   );

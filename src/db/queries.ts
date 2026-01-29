@@ -86,6 +86,34 @@ export async function getClientByClientId(
 }
 
 /**
+ * Validate a redirect URI against an already-fetched client.
+ * Use this when you already have the client object to avoid redundant DB queries.
+ *
+ * @param client - The client object
+ * @param redirectUri - The redirect URI to validate
+ * @param engineDb - Optional GroveEngine database for wildcard tenant validation
+ */
+export async function validateRedirectUriForClient(
+  client: Client,
+  redirectUri: string,
+  engineDb?: D1Database
+): Promise<boolean> {
+  // First, check exact match (backward compatible)
+  const allowedUris: string[] = JSON.parse(client.redirect_uris);
+  if (allowedUris.includes(redirectUri)) {
+    return true;
+  }
+
+  // Check if this client supports wildcard validation
+  const subdomain = extractSubdomainFromRedirectUri(client.client_id, redirectUri);
+  if (subdomain && engineDb) {
+    return isActiveTenant(engineDb, subdomain);
+  }
+
+  return false;
+}
+
+/**
  * Validate that a redirect URI is allowed for a client.
  *
  * Validation order:
@@ -108,19 +136,7 @@ export async function validateClientRedirectUri(
   const client = await getClientByClientId(db, clientId);
   if (!client) return false;
 
-  // First, check exact match (backward compatible)
-  const allowedUris: string[] = JSON.parse(client.redirect_uris);
-  if (allowedUris.includes(redirectUri)) {
-    return true;
-  }
-
-  // Check if this client supports wildcard validation
-  const subdomain = extractSubdomainFromRedirectUri(clientId, redirectUri);
-  if (subdomain && engineDb) {
-    return isActiveTenant(engineDb, subdomain);
-  }
-
-  return false;
+  return validateRedirectUriForClient(client, redirectUri, engineDb);
 }
 
 export async function validateClientOrigin(
@@ -571,12 +587,13 @@ export async function saveOAuthState(
     code_challenge_method?: string;
     original_state: string;
     expires_at: string;
+    is_internal_service?: boolean; // Cached from client to avoid re-fetch in callback
   }
 ): Promise<void> {
   await db
     .prepare(
-      `INSERT INTO oauth_states (state, client_id, redirect_uri, code_challenge, code_challenge_method, original_state, expires_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`
+      `INSERT INTO oauth_states (state, client_id, redirect_uri, code_challenge, code_challenge_method, original_state, expires_at, is_internal_service)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
     )
     .bind(
       data.state,
@@ -585,7 +602,8 @@ export async function saveOAuthState(
       data.code_challenge || null,
       data.code_challenge_method || null,
       data.original_state,
-      data.expires_at
+      data.expires_at,
+      data.is_internal_service ? 1 : 0
     )
     .run();
 }
@@ -605,6 +623,7 @@ export async function getOAuthState(db: D1DatabaseOrSession, state: string): Pro
     state: result.original_state,
     code_challenge: result.code_challenge || undefined,
     code_challenge_method: result.code_challenge_method || undefined,
+    is_internal_service: Boolean((result as { is_internal_service?: number }).is_internal_service),
   };
 }
 

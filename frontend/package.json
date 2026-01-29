@@ -28,7 +28,7 @@
     "vite": "^6.0.0"
   },
   "dependencies": {
-    "@autumnsgrove/groveengine": "^0.9.92",
+    "@autumnsgrove/groveengine": "^0.9.93",
     "@better-auth/passkey": "^1.4.10",
     "better-auth": "^1.4.10",
     "lucide-svelte": "^0.513.0"

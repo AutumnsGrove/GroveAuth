@@ -13,6 +13,10 @@ import {
   RATE_LIMIT_VERIFY_PER_CLIENT,
   RATE_LIMIT_ADMIN_PER_IP,
   RATE_LIMIT_WINDOW,
+  RATE_LIMIT_PASSKEY_REGISTER,
+  RATE_LIMIT_PASSKEY_DELETE,
+  RATE_LIMIT_PASSKEY_AUTH,
+  RATE_LIMIT_PASSKEY_WINDOW,
 } from '../utils/constants.js';
 
 interface RateLimitConfig {
@@ -123,6 +127,39 @@ export const verifyRateLimiter = createRateLimiter({
 export const adminRateLimiter = createRateLimiter({
   keyPrefix: 'admin',
   limit: RATE_LIMIT_ADMIN_PER_IP,
+  windowSeconds: RATE_LIMIT_WINDOW,
+  getKey: (c) => getClientIP(c.req.raw),
+});
+
+/**
+ * Rate limiter for passkey registration (by IP)
+ * Defense-in-depth: limits registration attempts per hour
+ */
+export const passkeyRegisterRateLimiter = createRateLimiter({
+  keyPrefix: 'passkey_register',
+  limit: RATE_LIMIT_PASSKEY_REGISTER,
+  windowSeconds: RATE_LIMIT_PASSKEY_WINDOW,
+  getKey: (c) => getClientIP(c.req.raw),
+});
+
+/**
+ * Rate limiter for passkey deletion (by IP)
+ * Prevents rapid passkey removal (stolen device protection)
+ */
+export const passkeyDeleteRateLimiter = createRateLimiter({
+  keyPrefix: 'passkey_delete',
+  limit: RATE_LIMIT_PASSKEY_DELETE,
+  windowSeconds: RATE_LIMIT_PASSKEY_WINDOW,
+  getKey: (c) => getClientIP(c.req.raw),
+});
+
+/**
+ * Rate limiter for passkey authentication (by IP)
+ * Limits authentication attempts per minute
+ */
+export const passkeyAuthRateLimiter = createRateLimiter({
+  keyPrefix: 'passkey_auth',
+  limit: RATE_LIMIT_PASSKEY_AUTH,
   windowSeconds: RATE_LIMIT_WINDOW,
   getKey: (c) => getClientIP(c.req.raw),
 });

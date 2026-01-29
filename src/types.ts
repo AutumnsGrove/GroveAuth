@@ -162,7 +162,11 @@ export type AuditEventType =
   | 'device_code_created'
   | 'device_code_authorized'
   | 'device_code_denied'
-  | 'device_code_polled';
+  | 'device_code_polled'
+  | 'passkey_registered'
+  | 'passkey_deleted'
+  | 'passkey_auth_success'
+  | 'passkey_auth_failed';
 
 // API Request/Response Types
 export interface LoginParams {

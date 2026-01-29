@@ -4,11 +4,13 @@
     signInWithGoogle,
     signInWithMagicLink,
     signInWithPasskey,
+    auth,
   } from '$lib/auth/client';
   import Logo from '$lib/components/Logo.svelte';
   import GoogleIcon from '$lib/components/GoogleIcon.svelte';
   import MailIcon from '$lib/components/MailIcon.svelte';
   import { KeyRound } from 'lucide-svelte';
+  import { onMount } from 'svelte';
 
   let { data } = $props();
 
@@ -19,12 +21,39 @@
   let errorMessage = $state('');
   let successMessage = $state('');
 
+  // Passkey support detection
+  let supportsPasskeys = $state(false);
+
   // Determine callback URL from params or default
   const callbackURL = data.params?.redirect_uri || '/dashboard';
   const errorCallbackURL = `/login?error=auth_failed&${new URLSearchParams(data.params || {}).toString()}`;
 
   // Check if we're in legacy OAuth flow (with client_id params)
   const isLegacyFlow = !!data.params?.client_id;
+
+  // Check device capability and enable Conditional UI on mount
+  onMount(async () => {
+    // Check if device supports passkeys
+    if (typeof window !== 'undefined' && window.PublicKeyCredential) {
+      try {
+        supportsPasskeys = await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable?.() ?? false;
+
+        // Enable Conditional UI (autofill) if supported
+        // This allows passkey sign-in when user focuses the email field
+        if (supportsPasskeys && PublicKeyCredential.isConditionalMediationAvailable) {
+          const conditionalSupported = await PublicKeyCredential.isConditionalMediationAvailable();
+          if (conditionalSupported) {
+            // Start conditional UI - browser will show passkey option in autofill
+            auth.signIn.passkey({ autoFill: true }).catch(() => {
+              // Silently ignore - conditional UI may fail if no passkeys registered
+            });
+          }
+        }
+      } catch {
+        supportsPasskeys = false;
+      }
+    }
+  });
 
   // Build legacy OAuth URL for backwards compatibility
   function buildLegacyOAuthUrl(provider: string): string {
@@ -178,7 +207,7 @@
           Continue with Google
         </button>
 
-        {#if !isLegacyFlow}
+        {#if supportsPasskeys}
           <button
             type="button"
             onclick={handlePasskeySignIn}
@@ -219,6 +248,7 @@
             bind:value={email}
             placeholder="you@example.com"
             class="input-field"
+            autocomplete="username webauthn"
             required
             disabled={isLoading}
           />

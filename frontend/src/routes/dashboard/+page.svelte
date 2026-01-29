@@ -1,11 +1,79 @@
 <script lang="ts">
   import Logo from '$lib/components/Logo.svelte';
   import { theme } from '$lib/theme';
-  import { Sun, Moon, Server, Smartphone, Cloud, Activity } from 'lucide-svelte';
+  import { Sun, Moon, Server, Smartphone, Cloud, Activity, KeyRound, ShieldCheck, X } from 'lucide-svelte';
+  import { listPasskeys, registerPasskey } from '$lib/auth/client';
+  import { onMount } from 'svelte';
 
   let { data } = $props();
 
   const { stats, clients, user } = data;
+
+  // Passkey promotion state
+  let showPasskeyPromo = $state(false);
+  let hasCheckedPasskeys = $state(false);
+  let isRegistering = $state(false);
+  let supportsPasskeys = $state(false);
+
+  // Check passkey status on mount
+  onMount(async () => {
+    // Check if dismissed
+    const dismissed = localStorage.getItem('passkey-promo-dismissed');
+    if (dismissed) {
+      hasCheckedPasskeys = true;
+      return;
+    }
+
+    // Check device support
+    if (typeof window !== 'undefined' && window.PublicKeyCredential) {
+      try {
+        supportsPasskeys = await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable?.() ?? false;
+      } catch {
+        supportsPasskeys = false;
+      }
+    }
+
+    if (!supportsPasskeys) {
+      hasCheckedPasskeys = true;
+      return;
+    }
+
+    // Check if user has passkeys
+    try {
+      const result = await listPasskeys();
+      const passkeys = result.data || [];
+      showPasskeyPromo = passkeys.length === 0;
+    } catch {
+      // Silently fail - don't show promo if we can't check
+    }
+    hasCheckedPasskeys = true;
+  });
+
+  function dismissPasskeyPromo() {
+    showPasskeyPromo = false;
+    localStorage.setItem('passkey-promo-dismissed', 'true');
+  }
+
+  async function handleAddPasskey() {
+    isRegistering = true;
+    try {
+      const platform = navigator.platform || '';
+      let defaultName = 'My Passkey';
+      if (platform.includes('Mac')) defaultName = 'MacBook';
+      else if (platform.includes('iPhone')) defaultName = 'iPhone';
+      else if (platform.includes('Win')) defaultName = 'Windows PC';
+
+      const result = await registerPasskey(defaultName);
+      if (!result.error) {
+        showPasskeyPromo = false;
+        localStorage.setItem('passkey-promo-dismissed', 'true');
+      }
+    } catch {
+      // Silent fail
+    } finally {
+      isRegistering = false;
+    }
+  }
 
   // Format date for display in local timezone
   function formatDate(dateStr: string): string {
@@ -140,8 +208,56 @@
           <p class="text-xs text-bark/60 dark:text-gray-400 font-sans">Upload files & assets</p>
         </div>
       </a>
+      <a href="/dashboard/security" class="card p-4 flex items-center gap-3 hover:bg-grove-50 dark:hover:bg-gray-700/50 transition-colors">
+        <div class="p-2 rounded-lg bg-grove-100 dark:bg-gray-700">
+          <ShieldCheck size={20} class="text-grove-600 dark:text-grove-400" />
+        </div>
+        <div>
+          <h4 class="font-serif text-bark dark:text-gray-100">Security</h4>
+          <p class="text-xs text-bark/60 dark:text-gray-400 font-sans">Manage passkeys</p>
+        </div>
+      </a>
     </div>
   </div>
+
+  <!-- Passkey Promotion Banner -->
+  {#if showPasskeyPromo && hasCheckedPasskeys}
+    <div class="mb-8 p-4 rounded-lg bg-gradient-to-r from-grove-100 to-grove-50 dark:from-grove-900/30 dark:to-gray-800/50 border border-grove-200 dark:border-grove-700/50">
+      <div class="flex items-start gap-4">
+        <div class="p-2 rounded-lg bg-grove-200 dark:bg-grove-800">
+          <KeyRound size={24} class="text-grove-600 dark:text-grove-400" />
+        </div>
+        <div class="flex-1">
+          <h3 class="font-serif text-bark dark:text-gray-100 mb-1">Sign in faster with a passkey</h3>
+          <p class="text-sm text-bark/60 dark:text-gray-400 font-sans mb-3">
+            Use Face ID, Touch ID, or Windows Hello instead of waiting for Google. It's faster and more secure.
+          </p>
+          <div class="flex items-center gap-3">
+            <button
+              onclick={handleAddPasskey}
+              disabled={isRegistering}
+              class="px-4 py-2 rounded-lg bg-grove-500 text-white hover:bg-grove-600 transition-colors disabled:opacity-50 font-sans text-sm"
+            >
+              {isRegistering ? 'Adding...' : 'Add Passkey'}
+            </button>
+            <button
+              onclick={dismissPasskeyPromo}
+              class="text-sm text-bark/50 dark:text-gray-500 hover:text-bark/70 dark:hover:text-gray-400 transition-colors font-sans"
+            >
+              Maybe later
+            </button>
+          </div>
+        </div>
+        <button
+          onclick={dismissPasskeyPromo}
+          class="p-1 text-bark/40 dark:text-gray-600 hover:text-bark/60 dark:hover:text-gray-400 transition-colors"
+          aria-label="Dismiss"
+        >
+          <X size={18} />
+        </button>
+      </div>
+    </div>
+  {/if}
 
   <!-- GroveEngine Stats -->
   <div class="mb-8">

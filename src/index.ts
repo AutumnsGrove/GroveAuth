@@ -212,7 +212,16 @@ export { SessionDO } from './durables/SessionDO.js';
 export default {
   fetch: (request: Request, env: Env, ctx: ExecutionContext) => app.fetch(request, env, ctx),
   scheduled: async (_controller: ScheduledController, env: Env, _ctx: ExecutionContext) => {
-    // Keepalive: warm the D1 connection so real auth requests never hit cold-start latency
-    await env.DB.prepare('SELECT 1').first();
+    // Keepalive: warm all cold-start-prone resources
+    // This runs every minute to keep the worker and its dependencies hot
+    await Promise.all([
+      // Warm both D1 databases (each has separate connection overhead)
+      env.DB.prepare('SELECT 1').first(),
+      env.ENGINE_DB.prepare('SELECT 1').first(),
+      // Warm KV namespace (connection initialization)
+      env.SESSION_KV.get('__keepalive__'),
+    ]);
+    // Note: Durable Objects warm on first access per-user, can't pre-warm all instances
+    // Note: Cron only warms ONE region; users in other regions may still see cold starts
   },
 };

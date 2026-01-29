@@ -1,7 +1,6 @@
 <script lang="ts">
   import Logo from '$lib/components/Logo.svelte';
-  import GoogleIcon from '$lib/components/GoogleIcon.svelte';
-  import GitHubIcon from '$lib/components/GitHubIcon.svelte';
+  import { LoginGraft } from '@autumnsgrove/groveengine/grafts/login';
   import { Circle, ShieldCheck, Key, Zap } from 'lucide-svelte';
 
   let { data } = $props();
@@ -12,17 +11,6 @@
   let needsLogin = $derived(data?.needsLogin);
   let error = $derived(data?.error);
   let errorDescription = $derived(data?.errorDescription);
-
-  // Build OAuth URL for admin login
-  function buildOAuthUrl(provider: string): string {
-    const state = crypto.randomUUID();
-    const params = new URLSearchParams({
-      client_id: 'groveengine',
-      redirect_uri: 'https://admin.grove.place/callback',
-      state: state
-    });
-    return `https://auth-api.grove.place/oauth/${provider}?${params}`;
-  }
 </script>
 
 <svelte:head>
@@ -35,39 +23,25 @@
 </svelte:head>
 
 {#if isAdmin && needsLogin}
-  <!-- Admin Login Required -->
+  <!-- Admin Login Required - Uses LoginGraft from GroveEngine -->
   <main class="min-h-screen flex flex-col items-center justify-center px-6 py-16">
-    <div class="mb-6">
-      <Logo size="lg" />
-    </div>
-
-    <h1 class="text-3xl md:text-4xl font-serif text-bark dark:text-gray-100 mb-3 text-center">Admin Dashboard</h1>
-
-    <p class="text-lg text-bark/70 dark:text-gray-400 font-serif italic mb-8 text-center">
-      Authentication required
-    </p>
-
-    <div class="card p-8 max-w-sm">
-      <p class="text-bark/70 dark:text-gray-400 font-sans mb-6 text-center">
-        Sign in to access the admin dashboard
-      </p>
-
-      <div class="space-y-3">
-        <a href={buildOAuthUrl('google')} class="btn-provider">
-          <GoogleIcon />
-          Continue with Google
-        </a>
-
-        <a href={buildOAuthUrl('github')} class="btn-provider">
-          <GitHubIcon />
-          Continue with GitHub
-        </a>
-      </div>
-
-      <p class="text-bark/50 dark:text-gray-500 font-sans text-sm mt-6 text-center">
-        Admin access is restricted to authorized users only.
-      </p>
-    </div>
+    <LoginGraft
+      variant="fullpage"
+      providers={['google']}
+      returnTo="/dashboard"
+      loginUrl="/auth/login"
+    >
+      {#snippet logo()}
+        <Logo size="lg" />
+      {/snippet}
+      {#snippet header()}
+        <h1 class="text-2xl font-semibold text-foreground">Admin Dashboard</h1>
+        <p class="mt-2 text-sm text-muted-foreground">Sign in to access administration</p>
+      {/snippet}
+      {#snippet footer()}
+        <p class="text-xs text-muted-foreground">Admin access is restricted to authorized users only.</p>
+      {/snippet}
+    </LoginGraft>
 
     <footer class="mt-16 text-center">
       <div class="flex items-center justify-center gap-4 text-sm font-sans text-bark/50 dark:text-gray-500">

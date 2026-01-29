@@ -30,6 +30,28 @@ export const load: PageServerLoad = async ({ url, cookies, platform }) => {
     };
   }
 
+  // Validate state (CSRF protection)
+  const savedState = cookies.get('auth_state');
+  if (!state || state !== savedState) {
+    console.error('[Auth Callback] State mismatch');
+    return {
+      success: false,
+      error: 'invalid_state',
+      errorDescription: 'Login session expired, please try again'
+    };
+  }
+
+  // Get code verifier (PKCE)
+  const codeVerifier = cookies.get('auth_code_verifier');
+  if (!codeVerifier) {
+    console.error('[Auth Callback] Missing code verifier');
+    return {
+      success: false,
+      error: 'missing_verifier',
+      errorDescription: 'Login session expired, please try again'
+    };
+  }
+
   // Must have authorization code
   if (!code) {
     return {
@@ -38,6 +60,10 @@ export const load: PageServerLoad = async ({ url, cookies, platform }) => {
       errorDescription: 'No authorization code received'
     };
   }
+
+  // Clear auth cookies
+  cookies.delete('auth_state', { path: '/' });
+  cookies.delete('auth_code_verifier', { path: '/' });
 
   // Get client secret from environment
   const clientSecret = platform?.env?.GROVEENGINE_CLIENT_SECRET;
@@ -62,7 +88,8 @@ export const load: PageServerLoad = async ({ url, cookies, platform }) => {
         code,
         redirect_uri: 'https://admin.grove.place/callback',
         client_id: 'groveengine',
-        client_secret: clientSecret
+        client_secret: clientSecret,
+        code_verifier: codeVerifier
       })
     });
 

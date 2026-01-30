@@ -7,6 +7,12 @@ import { Hono } from 'hono';
 import type { Env } from '../types.js';
 import { createMockEnv } from '../test-helpers.js';
 
+// Type-safe response interfaces for tests
+interface RateLimitErrorResponse {
+  error: string;
+  retry_after: number;
+}
+
 // Mock the DB queries module
 vi.mock('../db/queries.js', () => ({
   checkRateLimit: vi.fn(),
@@ -68,7 +74,7 @@ describe('createRateLimiter', () => {
 
     const res = await app.request('/test', {}, mockEnv);
     expect(res.status).toBe(429);
-    const json = await res.json();
+    const json = await res.json() as RateLimitErrorResponse;
     expect(json.error).toBe('rate_limit');
     expect(json.retry_after).toBeGreaterThan(0);
   });

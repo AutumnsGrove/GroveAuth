@@ -9,6 +9,26 @@ import type { Env } from '../types.js';
 import { createMockEnv, TEST_USER, formBody } from '../test-helpers.js';
 import { hashSecret, sha256Base64Url } from '../utils/crypto.js';
 
+// Type-safe response interfaces for tests
+interface ErrorResponse {
+  error: string;
+  error_description?: string;
+  retry_after?: number;
+  interval?: number;
+}
+
+interface TokenResponse {
+  access_token: string;
+  token_type: string;
+  expires_in: number;
+  refresh_token?: string;
+  scope?: string;
+}
+
+interface SuccessResponse {
+  success: boolean;
+}
+
 // Mock database queries
 vi.mock('../db/queries.js', () => ({
   getClientByClientId: vi.fn(),
@@ -81,7 +101,7 @@ describe('POST /token - unsupported grant type', () => {
   it('returns 400 for unknown grant_type', async () => {
     const res = await makeTokenRequest({ grant_type: 'client_credentials', client_id: 'x', client_secret: 'y' });
     expect(res.status).toBe(400);
-    const json = await res.json();
+    const json = await res.json() as { error: string };
     expect(json.error).toBe('unsupported_grant_type');
   });
 
@@ -122,7 +142,7 @@ describe('POST /token - authorization_code grant', () => {
       // Missing code and redirect_uri
     });
     expect(res.status).toBe(400);
-    const json = await res.json();
+    const json = await res.json() as ErrorResponse;
     expect(json.error).toBe('invalid_request');
   });
 
@@ -137,7 +157,7 @@ describe('POST /token - authorization_code grant', () => {
       client_secret: clientSecretPlain,
     });
     expect(res.status).toBe(401);
-    const json = await res.json();
+    const json = await res.json() as ErrorResponse;
     expect(json.error).toBe('invalid_client');
   });
 
@@ -150,7 +170,7 @@ describe('POST /token - authorization_code grant', () => {
       client_secret: 'wrong-secret',
     });
     expect(res.status).toBe(401);
-    const json = await res.json();
+    const json = await res.json() as ErrorResponse;
     expect(json.error).toBe('invalid_client');
   });
 
@@ -165,7 +185,7 @@ describe('POST /token - authorization_code grant', () => {
       client_secret: clientSecretPlain,
     });
     expect(res.status).toBe(400);
-    const json = await res.json();
+    const json = await res.json() as ErrorResponse;
     expect(json.error).toBe('invalid_grant');
   });
 
@@ -188,7 +208,7 @@ describe('POST /token - authorization_code grant', () => {
       code_verifier: 'verifier',
     });
     expect(res.status).toBe(400);
-    const json = await res.json();
+    const json = await res.json() as ErrorResponse;
     expect(json.error).toBe('invalid_grant');
     expect(json.error_description).toContain('Redirect URI mismatch');
   });
@@ -212,7 +232,7 @@ describe('POST /token - authorization_code grant', () => {
       code_verifier: 'verifier',
     });
     expect(res.status).toBe(400);
-    const json = await res.json();
+    const json = await res.json() as ErrorResponse;
     expect(json.error_description).toContain('PKCE');
   });
 
@@ -235,7 +255,7 @@ describe('POST /token - authorization_code grant', () => {
       // Missing code_verifier
     });
     expect(res.status).toBe(400);
-    const json = await res.json();
+    const json = await res.json() as ErrorResponse;
     expect(json.error_description).toContain('Code verifier required');
   });
 
@@ -261,7 +281,7 @@ describe('POST /token - authorization_code grant', () => {
       code_verifier: 'wrong-verifier',
     });
     expect(res.status).toBe(400);
-    const json = await res.json();
+    const json = await res.json() as ErrorResponse;
     expect(json.error_description).toContain('PKCE verification failed');
   });
 
@@ -292,7 +312,7 @@ describe('POST /token - authorization_code grant', () => {
     });
 
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await res.json() as TokenResponse;
     expect(json.access_token).toBeDefined();
     expect(json.token_type).toBe('Bearer');
     expect(json.expires_in).toBe(3600);
@@ -315,7 +335,7 @@ describe('POST /token - authorization_code grant', () => {
       client_secret: clientSecretPlain,
     });
     expect(res.status).toBe(429);
-    const json = await res.json();
+    const json = await res.json() as ErrorResponse;
     expect(json.error).toBe('rate_limit');
     expect(json.retry_after).toBe(45);
   });
@@ -374,7 +394,7 @@ describe('POST /token - refresh_token grant', () => {
       refresh_token: 'invalid-token',
     });
     expect(res.status).toBe(400);
-    const json = await res.json();
+    const json = await res.json() as ErrorResponse;
     expect(json.error).toBe('invalid_grant');
   });
 
@@ -395,7 +415,7 @@ describe('POST /token - refresh_token grant', () => {
       refresh_token: 'some-token',
     });
     expect(res.status).toBe(400);
-    const json = await res.json();
+    const json = await res.json() as ErrorResponse;
     expect(json.error_description).toContain('Client mismatch');
   });
 
@@ -416,7 +436,7 @@ describe('POST /token - refresh_token grant', () => {
       refresh_token: 'expired-token',
     });
     expect(res.status).toBe(400);
-    const json = await res.json();
+    const json = await res.json() as ErrorResponse;
     expect(json.error_description).toContain('expired');
   });
 
@@ -442,7 +462,7 @@ describe('POST /token - refresh_token grant', () => {
     });
 
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await res.json() as TokenResponse;
     expect(json.access_token).toBeDefined();
     expect(json.refresh_token).toBeDefined();
 
@@ -474,7 +494,7 @@ describe('POST /token - device_code grant', () => {
       // Missing device_code
     });
     expect(res.status).toBe(400);
-    const json = await res.json();
+    const json = await res.json() as ErrorResponse;
     expect(json.error).toBe('invalid_request');
   });
 
@@ -498,7 +518,7 @@ describe('POST /token - device_code grant', () => {
       device_code: 'invalid-code',
     });
     expect(res.status).toBe(400);
-    const json = await res.json();
+    const json = await res.json() as ErrorResponse;
     expect(json.error).toBe('invalid_grant');
   });
 
@@ -518,7 +538,7 @@ describe('POST /token - device_code grant', () => {
       device_code: 'some-code',
     });
     expect(res.status).toBe(400);
-    const json = await res.json();
+    const json = await res.json() as ErrorResponse;
     expect(json.error_description).toContain('Client mismatch');
   });
 
@@ -538,7 +558,7 @@ describe('POST /token - device_code grant', () => {
       device_code: 'expired-code',
     });
     expect(res.status).toBe(400);
-    const json = await res.json();
+    const json = await res.json() as ErrorResponse;
     expect(json.error).toBe('expired_token');
   });
 
@@ -560,7 +580,7 @@ describe('POST /token - device_code grant', () => {
       device_code: 'fast-poll-code',
     });
     expect(res.status).toBe(400);
-    const json = await res.json();
+    const json = await res.json() as ErrorResponse;
     expect(json.error).toBe('slow_down');
     expect(json.interval).toBe(10); // 5 + 5 increment
   });
@@ -583,7 +603,7 @@ describe('POST /token - device_code grant', () => {
       device_code: 'pending-code',
     });
     expect(res.status).toBe(400);
-    const json = await res.json();
+    const json = await res.json() as ErrorResponse;
     expect(json.error).toBe('authorization_pending');
   });
 
@@ -606,7 +626,7 @@ describe('POST /token - device_code grant', () => {
       device_code: 'denied-code',
     });
     expect(res.status).toBe(400);
-    const json = await res.json();
+    const json = await res.json() as ErrorResponse;
     expect(json.error).toBe('access_denied');
   });
 
@@ -636,7 +656,7 @@ describe('POST /token - device_code grant', () => {
     });
 
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await res.json() as TokenResponse;
     expect(json.access_token).toBeDefined();
     expect(json.refresh_token).toBeDefined();
     expect(json.scope).toBe('openid email');
@@ -698,7 +718,7 @@ describe('POST /token/revoke', () => {
       client_secret: clientSecretPlain,
     });
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await res.json() as SuccessResponse;
     expect(json.success).toBe(true);
   });
 

@@ -108,6 +108,7 @@ export function createAuth(env: Env, cf?: CloudflareGeolocation) {
       'https://heartwood.grove.place',
       'https://amber.grove.place',
       'https://groveengine.grove.place',
+      'https://autumn.grove.place',  // Property site
     ],
 
     // Database configuration via better-auth-cloudflare

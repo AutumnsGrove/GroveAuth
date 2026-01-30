@@ -38,7 +38,21 @@ const ALLOWED_ORIGINS = [
   'https://groveengine.grove.place',
   'https://autumnsgrove.com',
   'https://amber.grove.place',
+  'https://autumn.grove.place',  // Property site
 ] as const;
+
+/**
+ * Check if origin matches *.grove.place wildcard pattern
+ * Allows any HTTPS subdomain of grove.place for future properties
+ */
+function isGroveSubdomain(origin: string): boolean {
+  try {
+    const url = new URL(origin);
+    return url.hostname.endsWith('.grove.place') && url.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
 
 /**
  * Get CORS headers for a given origin
@@ -51,7 +65,7 @@ function getCorsHeaders(origin: string | undefined): Record<string, string> {
     'Access-Control-Max-Age': '86400',
   };
 
-  if (origin && ALLOWED_ORIGINS.includes(origin as typeof ALLOWED_ORIGINS[number])) {
+  if (origin && (ALLOWED_ORIGINS.includes(origin as typeof ALLOWED_ORIGINS[number]) || isGroveSubdomain(origin))) {
     headers['Access-Control-Allow-Origin'] = origin;
     headers['Access-Control-Allow-Credentials'] = 'true';
   }

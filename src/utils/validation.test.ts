@@ -4,10 +4,7 @@
 
 import { describe, it, expect } from 'vitest';
 import {
-  loginParamsSchema,
   tokenRequestSchema,
-  magicCodeSendSchema,
-  magicCodeVerifySchema,
   tokenRevokeSchema,
   deviceCodeInitSchema,
   deviceAuthorizeSchema,
@@ -15,77 +12,6 @@ import {
   isValidUrl,
   parseFormData,
 } from './validation.js';
-
-// =============================================================================
-// loginParamsSchema
-// =============================================================================
-
-describe('loginParamsSchema', () => {
-  it('accepts valid params', () => {
-    const result = loginParamsSchema.safeParse({
-      client_id: 'test-app',
-      redirect_uri: 'https://app.example.com/callback',
-      state: 'random-state-value',
-    });
-    expect(result.success).toBe(true);
-  });
-
-  it('accepts params with PKCE', () => {
-    const result = loginParamsSchema.safeParse({
-      client_id: 'test-app',
-      redirect_uri: 'https://app.example.com/callback',
-      state: 'random-state',
-      code_challenge: 'challenge-value',
-      code_challenge_method: 'S256',
-    });
-    expect(result.success).toBe(true);
-  });
-
-  it('rejects missing client_id', () => {
-    const result = loginParamsSchema.safeParse({
-      redirect_uri: 'https://app.example.com/callback',
-      state: 'random-state',
-    });
-    expect(result.success).toBe(false);
-  });
-
-  it('rejects empty client_id', () => {
-    const result = loginParamsSchema.safeParse({
-      client_id: '',
-      redirect_uri: 'https://app.example.com/callback',
-      state: 'random-state',
-    });
-    expect(result.success).toBe(false);
-  });
-
-  it('rejects invalid redirect_uri', () => {
-    const result = loginParamsSchema.safeParse({
-      client_id: 'test-app',
-      redirect_uri: 'not-a-url',
-      state: 'random-state',
-    });
-    expect(result.success).toBe(false);
-  });
-
-  it('rejects missing state', () => {
-    const result = loginParamsSchema.safeParse({
-      client_id: 'test-app',
-      redirect_uri: 'https://app.example.com/callback',
-    });
-    expect(result.success).toBe(false);
-  });
-
-  it('rejects non-S256 code_challenge_method', () => {
-    const result = loginParamsSchema.safeParse({
-      client_id: 'test-app',
-      redirect_uri: 'https://app.example.com/callback',
-      state: 'random-state',
-      code_challenge: 'challenge-value',
-      code_challenge_method: 'plain',
-    });
-    expect(result.success).toBe(false);
-  });
-});
 
 // =============================================================================
 // tokenRequestSchema
@@ -166,107 +92,6 @@ describe('tokenRequestSchema', () => {
       grant_type: 'refresh_token',
       client_id: 'test-app',
       refresh_token: 'refresh-token-value',
-    });
-    expect(result.success).toBe(false);
-  });
-});
-
-// =============================================================================
-// magicCodeSendSchema
-// =============================================================================
-
-describe('magicCodeSendSchema', () => {
-  it('accepts valid request', () => {
-    const result = magicCodeSendSchema.safeParse({
-      email: 'user@example.com',
-      client_id: 'test-app',
-      redirect_uri: 'https://app.example.com/callback',
-    });
-    expect(result.success).toBe(true);
-  });
-
-  it('rejects invalid email', () => {
-    const result = magicCodeSendSchema.safeParse({
-      email: 'not-an-email',
-      client_id: 'test-app',
-      redirect_uri: 'https://app.example.com/callback',
-    });
-    expect(result.success).toBe(false);
-  });
-
-  it('rejects missing client_id', () => {
-    const result = magicCodeSendSchema.safeParse({
-      email: 'user@example.com',
-      redirect_uri: 'https://app.example.com/callback',
-    });
-    expect(result.success).toBe(false);
-  });
-
-  it('rejects invalid redirect_uri', () => {
-    const result = magicCodeSendSchema.safeParse({
-      email: 'user@example.com',
-      client_id: 'test-app',
-      redirect_uri: 'not-a-url',
-    });
-    expect(result.success).toBe(false);
-  });
-});
-
-// =============================================================================
-// magicCodeVerifySchema
-// =============================================================================
-
-describe('magicCodeVerifySchema', () => {
-  it('accepts valid request', () => {
-    const result = magicCodeVerifySchema.safeParse({
-      email: 'user@example.com',
-      code: '123456',
-      client_id: 'test-app',
-      redirect_uri: 'https://app.example.com/callback',
-      state: 'random-state',
-    });
-    expect(result.success).toBe(true);
-  });
-
-  it('rejects code with wrong length', () => {
-    const result = magicCodeVerifySchema.safeParse({
-      email: 'user@example.com',
-      code: '12345', // 5 digits
-      client_id: 'test-app',
-      redirect_uri: 'https://app.example.com/callback',
-      state: 'random-state',
-    });
-    expect(result.success).toBe(false);
-  });
-
-  it('rejects non-numeric code', () => {
-    const result = magicCodeVerifySchema.safeParse({
-      email: 'user@example.com',
-      code: 'abcdef',
-      client_id: 'test-app',
-      redirect_uri: 'https://app.example.com/callback',
-      state: 'random-state',
-    });
-    expect(result.success).toBe(false);
-  });
-
-  it('rejects missing state', () => {
-    const result = magicCodeVerifySchema.safeParse({
-      email: 'user@example.com',
-      code: '123456',
-      client_id: 'test-app',
-      redirect_uri: 'https://app.example.com/callback',
-    });
-    expect(result.success).toBe(false);
-  });
-
-  it('rejects invalid email', () => {
-    const result = magicCodeVerifySchema.safeParse({
-      email: 'bad-email',
-      code: '123456',
-      client_id: 'test-app',
-      redirect_uri: 'https://app.example.com/callback',
-      state: 'random-state',
     });
     expect(result.success).toBe(false);
   });

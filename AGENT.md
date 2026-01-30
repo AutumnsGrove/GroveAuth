@@ -269,12 +269,15 @@ Skills are invoked using the Skill tool. When a situation matches a skill trigge
 ### API Endpoints
 | Endpoint | Purpose |
 |----------|---------|
-| `GET /login` | Login page with provider selection |
-| `GET /oauth/google` | Initiate Google OAuth |
-| `POST /magic/send` | Send magic code email |
-| `POST /magic/verify` | Verify magic code |
-| `POST /token` | Exchange code for tokens |
-| `POST /token/refresh` | Refresh access token |
+| `POST /api/auth/sign-in/social` | Better Auth social login (Google, Discord) |
+| `POST /api/auth/sign-in/magic-link` | Better Auth magic link login |
+| `POST /api/auth/sign-in/passkey` | Better Auth passkey login |
+| `POST /api/auth/sign-out` | Better Auth sign out |
+| `GET /api/auth/session` | Get current Better Auth session |
+| `POST /auth/device-code` | Device code flow - initiate (RFC 8628) |
+| `GET /auth/device` | Device code flow - authorization page |
+| `POST /auth/device/authorize` | Device code flow - approve/deny |
+| `POST /token` | Token endpoint (device code polling) |
 | `GET /verify` | Verify access token |
 | `GET /userinfo` | Get current user info |
 | `GET /health` | Health check |

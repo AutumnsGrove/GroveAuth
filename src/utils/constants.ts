@@ -9,8 +9,6 @@ export const AUTH_CODE_EXPIRY = 5 * 60; // 5 minutes in seconds
 export const MAGIC_CODE_EXPIRY = 10 * 60; // 10 minutes in seconds
 
 // Rate limiting
-export const RATE_LIMIT_MAGIC_SEND_PER_EMAIL = 3; // per minute
-export const RATE_LIMIT_MAGIC_SEND_PER_IP = 10; // per minute
 export const RATE_LIMIT_TOKEN_PER_CLIENT = 20; // per minute
 export const RATE_LIMIT_VERIFY_PER_CLIENT = 100; // per minute
 export const RATE_LIMIT_WINDOW = 60; // 1 minute in seconds

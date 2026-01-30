@@ -169,14 +169,6 @@ export type AuditEventType =
   | 'passkey_auth_failed';
 
 // API Request/Response Types
-export interface LoginParams {
-  client_id: string;
-  redirect_uri: string;
-  state: string;
-  code_challenge?: string;
-  code_challenge_method?: 'S256';
-}
-
 export interface TokenRequest {
   grant_type: 'authorization_code' | 'refresh_token' | 'urn:ietf:params:oauth:grant-type:device_code';
   code?: string;
@@ -222,20 +214,6 @@ export interface UserInfo {
   name: string | null;
   picture: string | null;
   provider: AuthProvider;
-}
-
-export interface MagicCodeSendRequest {
-  email: string;
-  client_id: string;
-  redirect_uri: string;
-}
-
-export interface MagicCodeVerifyRequest {
-  email: string;
-  code: string;
-  client_id: string;
-  redirect_uri: string;
-  state: string;
 }
 
 // OAuth Provider Types

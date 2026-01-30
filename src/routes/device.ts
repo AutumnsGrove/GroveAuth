@@ -183,28 +183,44 @@ device.get('/device', async (c) => {
     }
   }
 
-  // Get session from grove_session cookie (set by Google OAuth flow)
-  const parsedSession = await getSessionFromRequest(c.req.raw, c.env.SESSION_SECRET);
+  // Build return URL for redirects
+  const returnUrl = userCodeParam
+    ? `${c.env.AUTH_BASE_URL}/auth/device?user_code=${encodeURIComponent(userCodeParam)}`
+    : `${c.env.AUTH_BASE_URL}/auth/device`;
 
-  if (!parsedSession) {
-    // Not logged in - redirect to login
-    // Build return URL using AUTH_BASE_URL (not c.req.url) to avoid domain issues
-    const returnUrl = userCodeParam
-      ? `${c.env.AUTH_BASE_URL}/auth/device?user_code=${encodeURIComponent(userCodeParam)}`
-      : `${c.env.AUTH_BASE_URL}/auth/device`;
-    const loginUrl = `${c.env.AUTH_BASE_URL}/login?client_id=grove-cli&redirect_uri=${encodeURIComponent(c.env.AUTH_BASE_URL + '/auth/device')}&state=${encodeURIComponent(returnUrl)}`;
-    return c.redirect(loginUrl);
+  // Try Better Auth session first (new system)
+  // Better Auth session is checked via internal API call
+  let user = null;
+  try {
+    const sessionResponse = await fetch(`${c.env.AUTH_BASE_URL}/api/auth/session`, {
+      headers: {
+        Cookie: c.req.header('Cookie') || '',
+      },
+    });
+    if (sessionResponse.ok) {
+      const sessionData = await sessionResponse.json() as { user?: { id: string } };
+      if (sessionData?.user?.id) {
+        user = await getUserById(db, sessionData.user.id);
+      }
+    }
+  } catch {
+    // Better Auth session check failed, try legacy session
   }
 
-  // Look up the user from the session
-  const user = await getUserById(db, parsedSession.userId);
+  // Fall back to legacy grove_session cookie (for backwards compatibility during migration)
   if (!user) {
-    // Session references a user that doesn't exist - clear and redirect to login
-    const returnUrl = userCodeParam
-      ? `${c.env.AUTH_BASE_URL}/auth/device?user_code=${encodeURIComponent(userCodeParam)}`
-      : `${c.env.AUTH_BASE_URL}/auth/device`;
-    const loginUrl = `${c.env.AUTH_BASE_URL}/login?client_id=grove-cli&redirect_uri=${encodeURIComponent(c.env.AUTH_BASE_URL + '/auth/device')}&state=${encodeURIComponent(returnUrl)}`;
-    return c.redirect(loginUrl);
+    const parsedSession = await getSessionFromRequest(c.req.raw, c.env.SESSION_SECRET);
+    if (parsedSession) {
+      user = await getUserById(db, parsedSession.userId);
+    }
+  }
+
+  if (!user) {
+    // Not logged in - redirect to sign in via a Grove site with LoginGraft
+    // After signing in, Better Auth will set a session cookie on .grove.place
+    // which we can verify when the user returns to this page
+    const signInUrl = `https://amber.grove.place/?returnTo=${encodeURIComponent(returnUrl)}`;
+    return c.redirect(signInUrl);
   }
 
   // Check for success state from redirect
@@ -259,17 +275,34 @@ device.get('/device', async (c) => {
 device.post('/device/authorize', async (c) => {
   const db = createDbSession(c.env);
 
-  // Get session from grove_session cookie (set by Google OAuth flow)
-  const parsedSession = await getSessionFromRequest(c.req.raw, c.env.SESSION_SECRET);
-
-  if (!parsedSession) {
-    return c.json({ error: 'unauthorized', error_description: 'Authentication required' }, 401);
+  // Try Better Auth session first (new system)
+  let user = null;
+  try {
+    const sessionResponse = await fetch(`${c.env.AUTH_BASE_URL}/api/auth/session`, {
+      headers: {
+        Cookie: c.req.header('Cookie') || '',
+      },
+    });
+    if (sessionResponse.ok) {
+      const sessionData = await sessionResponse.json() as { user?: { id: string } };
+      if (sessionData?.user?.id) {
+        user = await getUserById(db, sessionData.user.id);
+      }
+    }
+  } catch {
+    // Better Auth session check failed, try legacy session
   }
 
-  // Look up the user from the session
-  const user = await getUserById(db, parsedSession.userId);
+  // Fall back to legacy grove_session cookie (for backwards compatibility)
   if (!user) {
-    return c.json({ error: 'unauthorized', error_description: 'User not found' }, 401);
+    const parsedSession = await getSessionFromRequest(c.req.raw, c.env.SESSION_SECRET);
+    if (parsedSession) {
+      user = await getUserById(db, parsedSession.userId);
+    }
+  }
+
+  if (!user) {
+    return c.json({ error: 'unauthorized', error_description: 'Authentication required' }, 401);
   }
 
   // Parse request body

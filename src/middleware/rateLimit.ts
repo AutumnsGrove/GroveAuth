@@ -7,8 +7,6 @@ import type { Env, D1DatabaseOrSession } from '../types.js';
 import { checkRateLimit } from '../db/queries.js';
 import { getClientIP } from './security.js';
 import {
-  RATE_LIMIT_MAGIC_SEND_PER_EMAIL,
-  RATE_LIMIT_MAGIC_SEND_PER_IP,
   RATE_LIMIT_TOKEN_PER_CLIENT,
   RATE_LIMIT_VERIFY_PER_CLIENT,
   RATE_LIMIT_ADMIN_PER_IP,
@@ -68,30 +66,6 @@ export function createRateLimiter(config: RateLimitConfig): MiddlewareHandler<{ 
     return next();
   };
 }
-
-/**
- * Rate limiter for magic code send endpoint (by email)
- */
-export const magicSendEmailRateLimiter = createRateLimiter({
-  keyPrefix: 'magic_email',
-  limit: RATE_LIMIT_MAGIC_SEND_PER_EMAIL,
-  windowSeconds: RATE_LIMIT_WINDOW,
-  getKey: (_c) => {
-    // Extract email from request body (need to parse it)
-    // This will be called after body parsing in the route
-    return null; // Handled in route
-  },
-});
-
-/**
- * Rate limiter for magic code send endpoint (by IP)
- */
-export const magicSendIPRateLimiter = createRateLimiter({
-  keyPrefix: 'magic_ip',
-  limit: RATE_LIMIT_MAGIC_SEND_PER_IP,
-  windowSeconds: RATE_LIMIT_WINDOW,
-  getKey: (c) => getClientIP(c.req.raw),
-});
 
 /**
  * Rate limiter for token endpoint (by client)

@@ -4,15 +4,6 @@
 
 import { z } from 'zod';
 
-// Login parameters validation
-export const loginParamsSchema = z.object({
-  client_id: z.string().min(1, 'client_id is required'),
-  redirect_uri: z.string().url('redirect_uri must be a valid URL'),
-  state: z.string().min(1, 'state is required'),
-  code_challenge: z.string().optional(),
-  code_challenge_method: z.literal('S256').optional(),
-});
-
 // Token request validation
 export const tokenRequestSchema = z
   .object({
@@ -38,22 +29,6 @@ export const tokenRequestSchema = z
       message: 'Missing required parameters for grant type',
     }
   );
-
-// Magic code send request validation
-export const magicCodeSendSchema = z.object({
-  email: z.string().email('Invalid email format'),
-  client_id: z.string().min(1, 'client_id is required'),
-  redirect_uri: z.string().url('redirect_uri must be a valid URL'),
-});
-
-// Magic code verify request validation
-export const magicCodeVerifySchema = z.object({
-  email: z.string().email('Invalid email format'),
-  code: z.string().length(6, 'Code must be 6 digits').regex(/^\d+$/, 'Code must be numeric'),
-  client_id: z.string().min(1, 'client_id is required'),
-  redirect_uri: z.string().url('redirect_uri must be a valid URL'),
-  state: z.string().min(1, 'state is required'),
-});
 
 // Token revoke request validation
 export const tokenRevokeSchema = z.object({

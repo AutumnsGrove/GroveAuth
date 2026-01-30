@@ -219,7 +219,7 @@ device.get('/device', async (c) => {
     // Not logged in - redirect to sign in via a Grove site with LoginGraft
     // After signing in, Better Auth will set a session cookie on .grove.place
     // which we can verify when the user returns to this page
-    const signInUrl = `https://amber.grove.place/?returnTo=${encodeURIComponent(returnUrl)}`;
+    const signInUrl = `https://plant.grove.place/?returnTo=${encodeURIComponent(returnUrl)}`;
     return c.redirect(signInUrl);
   }
 

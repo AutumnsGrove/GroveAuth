@@ -11,9 +11,6 @@ import { securityHeaders } from './middleware/security.js';
 import { corsMiddleware } from './middleware/cors.js';
 
 // Routes
-import login from './routes/login.js';
-import google from './routes/oauth/google.js';
-import magic from './routes/magic.js';
 import tokenRoutes from './routes/token.js';
 import verifyRoutes from './routes/verify.js';
 import health from './routes/health.js';
@@ -35,9 +32,6 @@ app.use('*', securityHeaders);
 app.use('*', corsMiddleware);
 
 // Mount routes
-app.route('/login', login);
-app.route('/oauth/google', google);
-app.route('/magic', magic);
 app.route('/token', tokenRoutes);
 app.route('/auth', device);
 
@@ -120,21 +114,11 @@ app.get('/', (c) => {
       },
       // Account settings
       settings: 'GET /settings',
-      // Legacy endpoints (maintained for backwards compatibility)
-      login: 'GET /login',
-      oauth: {
-        google: 'GET /oauth/google',
-      },
-      magic: {
-        send: 'POST /magic/send',
-        verify: 'POST /magic/verify',
-      },
+      // Token endpoint (device code polling)
       token: {
-        exchange: 'POST /token',
-        refresh: 'POST /token/refresh',
-        revoke: 'POST /token/revoke',
         deviceCode: 'POST /token (grant_type=urn:ietf:params:oauth:grant-type:device_code)',
       },
+      // Device authorization (RFC 8628 for CLI)
       deviceAuth: {
         initiate: 'POST /auth/device-code',
         authorize: 'GET /auth/device',

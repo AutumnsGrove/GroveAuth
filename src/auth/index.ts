@@ -266,7 +266,7 @@ export function createAuth(env: Env, cf?: CloudflareGeolocation) {
 
       // Passkey (WebAuthn) authentication
       passkey({
-        rpID: 'grove.place',
+        rpID: env.PASSKEY_RP_ID || 'grove.place',
         rpName: 'Heartwood',
         origin: env.AUTH_BASE_URL,
       }),

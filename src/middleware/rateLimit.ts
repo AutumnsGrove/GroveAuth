@@ -29,6 +29,11 @@ interface RateLimitConfig {
  */
 export function createRateLimiter(config: RateLimitConfig): MiddlewareHandler<{ Bindings: Env }> {
   return async (c, next) => {
+    // Skip rate limiting in test environment (E2E tests)
+    if (c.env.ENVIRONMENT === 'test') {
+      return next();
+    }
+
     const keyPart = config.getKey(c);
     if (!keyPart) {
       // Can't identify the key, skip rate limiting

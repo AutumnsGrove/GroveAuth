@@ -31,6 +31,9 @@ export interface Env {
   // Feature flags
   PUBLIC_SIGNUP_ENABLED?: string; // 'true' to allow public signup (bypass allowlist)
 
+  // Passkey configuration (optional - defaults to 'grove.place')
+  PASSKEY_RP_ID?: string;
+
   // Secrets (set via wrangler secret put)
   JWT_PRIVATE_KEY: string;
   JWT_PUBLIC_KEY: string;

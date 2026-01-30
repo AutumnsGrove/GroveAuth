@@ -12,7 +12,10 @@
     "db:migrate": "wrangler d1 execute groveauth --file=./src/db/schema.sql",
     "db:migrate:local": "wrangler d1 execute groveauth --local --file=./src/db/schema.sql",
     "db:seed": "wrangler d1 execute groveauth --file=./src/db/seed.sql",
-    "db:seed:local": "wrangler d1 execute groveauth --local --file=./src/db/seed.sql"
+    "db:seed:local": "wrangler d1 execute groveauth --local --file=./src/db/seed.sql",
+    "test:e2e": "playwright test --config=e2e/playwright.config.ts",
+    "test:e2e:ui": "playwright test --config=e2e/playwright.config.ts --ui",
+    "test:e2e:debug": "playwright test --config=e2e/playwright.config.ts --debug"
   },
   "keywords": [
     "authentication",
@@ -34,6 +37,7 @@
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20251205.0",
+    "@playwright/test": "^1.52.0",
     "@types/node": "^24.10.1",
     "typescript": "^5.9.3",
     "vitest": "^4.0.15",

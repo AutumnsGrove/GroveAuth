@@ -37,6 +37,11 @@ __pycache__/
 coverage/
 .nyc_output/
 
+# Playwright E2E testing
+playwright-report/
+e2e/test-results/
+e2e/state/google-auth.json
+
 # Cache
 .cache/
 *.tsbuildinfo

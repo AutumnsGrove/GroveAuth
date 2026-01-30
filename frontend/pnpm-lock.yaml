@@ -12,8 +12,8 @@ importers:
   .:
     dependencies:
       '@autumnsgrove/groveengine':
-        specifier: ^0.9.94
-        version: 0.9.94(@sveltejs/kit@2.50.1(@sveltejs/vite-plugin-svelte@5.1.1(svelte@5.49.0)(vite@6.4.1(jiti@1.21.7)))(svelte@5.49.0)(typescript@5.9.3)(vite@6.4.1(jiti@1.21.7)))(svelte@5.49.0)(tailwindcss@3.4.19)
+        specifier: ^0.9.95
+        version: 0.9.95(@sveltejs/kit@2.50.1(@sveltejs/vite-plugin-svelte@5.1.1(svelte@5.49.0)(vite@6.4.1(jiti@1.21.7)))(svelte@5.49.0)(typescript@5.9.3)(vite@6.4.1(jiti@1.21.7)))(svelte@5.49.0)(tailwindcss@3.4.19)
       '@better-auth/passkey':
         specifier: ^1.4.10
         version: 1.4.18(@better-auth/core@1.4.18(@better-auth/utils@0.3.0)(@better-fetch/fetch@1.1.21)(better-call@1.1.8(zod@4.3.6))(jose@6.1.3)(kysely@0.28.10)(nanostores@1.1.0))(@better-auth/utils@0.3.0)(@better-fetch/fetch@1.1.21)(better-auth@1.4.18(@sveltejs/kit@2.50.1(@sveltejs/vite-plugin-svelte@5.1.1(svelte@5.49.0)(vite@6.4.1(jiti@1.21.7)))(svelte@5.49.0)(typescript@5.9.3)(vite@6.4.1(jiti@1.21.7)))(svelte@5.49.0))(better-call@1.1.8(zod@4.3.6))(nanostores@1.1.0)
@@ -73,8 +73,8 @@ packages:
       svelte:
         optional: true
 
-  '@autumnsgrove/groveengine@0.9.94':
-    resolution: {integrity: sha512-0PZ+5Lj9yR+2cBbtLefZ5OBcCfLvAEk+/0WQuuDvNRP5EqIRfUM+G1dPN2odY6q+Cdmm9LrYHCwCAOilgiQXIw==}
+  '@autumnsgrove/groveengine@0.9.95':
+    resolution: {integrity: sha512-hxuv5grvga6skNXXUBU9GEHOfPMtsQW50lPUu+QCG3EZUn022074Xdx34E6YbY81PgTFY4VoXsqv7u97++HOTg==}
     peerDependencies:
       '@sveltejs/kit': ^2.0.0
       svelte: ^5.0.0
@@ -1686,7 +1686,7 @@ snapshots:
     optionalDependencies:
       svelte: 5.49.0
 
-  '@autumnsgrove/groveengine@0.9.94(@sveltejs/kit@2.50.1(@sveltejs/vite-plugin-svelte@5.1.1(svelte@5.49.0)(vite@6.4.1(jiti@1.21.7)))(svelte@5.49.0)(typescript@5.9.3)(vite@6.4.1(jiti@1.21.7)))(svelte@5.49.0)(tailwindcss@3.4.19)':
+  '@autumnsgrove/groveengine@0.9.95(@sveltejs/kit@2.50.1(@sveltejs/vite-plugin-svelte@5.1.1(svelte@5.49.0)(vite@6.4.1(jiti@1.21.7)))(svelte@5.49.0)(typescript@5.9.3)(vite@6.4.1(jiti@1.21.7)))(svelte@5.49.0)(tailwindcss@3.4.19)':
     dependencies:
       '@11ty/gray-matter': 2.0.1
       '@autumnsgrove/gossamer': 0.1.1(svelte@5.49.0)

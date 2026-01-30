@@ -2,34 +2,50 @@
   import { AUTH_API_URL } from '$lib/config';
   import {
     signInWithGoogle,
-    signInWithMagicLink,
     signInWithPasskey,
     auth,
   } from '$lib/auth/client';
   import Logo from '$lib/components/Logo.svelte';
   import GoogleIcon from '$lib/components/GoogleIcon.svelte';
-  import MailIcon from '$lib/components/MailIcon.svelte';
-  import { KeyRound } from 'lucide-svelte';
+  import { Glass, seasonStore } from '@autumnsgrove/groveengine/ui';
+  import { Fingerprint, Loader2 } from 'lucide-svelte';
   import { onMount } from 'svelte';
 
   let { data } = $props();
 
   // State for auth flow
-  let view = $state<'providers' | 'email' | 'sent'>('providers');
-  let email = $state('');
   let isLoading = $state(false);
+  let loadingProvider = $state<'passkey' | 'google' | null>(null);
   let errorMessage = $state('');
-  let successMessage = $state('');
 
   // Passkey support detection
   let supportsPasskeys = $state(false);
 
   // Determine callback URL from params or default
-  const callbackURL = data.params?.redirect_uri || '/dashboard';
-  const errorCallbackURL = `/login?error=auth_failed&${new URLSearchParams(data.params || {}).toString()}`;
+  let callbackURL = $derived(data.params?.redirect_uri || '/dashboard');
+  let errorCallbackURL = $derived(
+    data.params
+      ? `/login?error=auth_failed&client_id=${encodeURIComponent(data.params.client_id || '')}&redirect_uri=${encodeURIComponent(data.params.redirect_uri || '')}&state=${encodeURIComponent(data.params.state || '')}`
+      : '/login?error=auth_failed'
+  );
 
   // Check if we're in legacy OAuth flow (with client_id params)
-  const isLegacyFlow = !!data.params?.client_id;
+  let isLegacyFlow = $derived(!!data.params?.client_id);
+
+  // Seasonal background classes
+  let season = $derived(seasonStore.current);
+  let seasonalBg = $derived(() => {
+    switch (season) {
+      case 'winter':
+        return 'bg-gradient-to-b from-slate-200 via-slate-100 to-sky-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-700';
+      case 'autumn':
+        return 'bg-gradient-to-b from-orange-100 via-amber-50 to-yellow-50 dark:from-slate-900 dark:via-amber-950 dark:to-orange-950';
+      case 'spring':
+        return 'bg-gradient-to-b from-pink-50 via-sky-50 to-lime-50 dark:from-slate-900 dark:via-pink-950 dark:to-lime-950';
+      default: // summer
+        return 'bg-gradient-to-b from-sky-100 via-emerald-50 to-grove-50 dark:from-slate-900 dark:via-slate-800 dark:to-emerald-950';
+    }
+  });
 
   // Check device capability and enable Conditional UI on mount
   onMount(async () => {
@@ -39,7 +55,6 @@
         supportsPasskeys = await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable?.() ?? false;
 
         // Enable Conditional UI (autofill) if supported
-        // This allows passkey sign-in when user focuses the email field
         if (supportsPasskeys && PublicKeyCredential.isConditionalMediationAvailable) {
           const conditionalSupported = await PublicKeyCredential.isConditionalMediationAvailable();
           if (conditionalSupported) {
@@ -73,60 +88,10 @@
     return `${AUTH_API_URL}/oauth/${provider}?${searchParams.toString()}`;
   }
 
-  // Handle Google sign in
-  async function handleGoogleSignIn() {
-    if (isLegacyFlow) {
-      // Use legacy OAuth flow for existing clients
-      window.location.href = buildLegacyOAuthUrl('google');
-      return;
-    }
-
-    isLoading = true;
-    errorMessage = '';
-    try {
-      await signInWithGoogle({ callbackURL, errorCallbackURL });
-    } catch (error) {
-      errorMessage = 'Failed to sign in with Google. Please try again.';
-      console.error('Google sign in error:', error);
-      isLoading = false;
-    }
-  }
-
-  // Send magic link
-  async function sendMagicLink() {
-    if (!email) return;
-
-    isLoading = true;
-    errorMessage = '';
-
-    try {
-      const result = await signInWithMagicLink(email, { callbackURL });
-
-      if (result.error) {
-        // Check for specific errors
-        if (result.error.message?.includes('not authorized')) {
-          errorMessage = 'This email is not authorized. Contact an administrator for access.';
-        } else {
-          // Still show success to prevent email enumeration
-          view = 'sent';
-          successMessage = 'If this email is registered, a magic link has been sent.';
-        }
-      } else {
-        view = 'sent';
-        successMessage = 'Check your email for a sign-in link!';
-      }
-    } catch (error) {
-      // Show success message anyway to prevent email enumeration
-      view = 'sent';
-      successMessage = 'If this email is registered, a magic link has been sent.';
-    } finally {
-      isLoading = false;
-    }
-  }
-
   // Handle passkey sign in
   async function handlePasskeySignIn() {
     isLoading = true;
+    loadingProvider = 'passkey';
     errorMessage = '';
     try {
       const result = await signInWithPasskey();
@@ -139,6 +104,28 @@
       console.error('Passkey sign in error:', error);
     } finally {
       isLoading = false;
+      loadingProvider = null;
+    }
+  }
+
+  // Handle Google sign in
+  async function handleGoogleSignIn() {
+    if (isLegacyFlow) {
+      // Use legacy OAuth flow for existing clients
+      window.location.href = buildLegacyOAuthUrl('google');
+      return;
+    }
+
+    isLoading = true;
+    loadingProvider = 'google';
+    errorMessage = '';
+    try {
+      await signInWithGoogle({ callbackURL, errorCallbackURL });
+    } catch (error) {
+      errorMessage = 'Failed to sign in with Google. Please try again.';
+      console.error('Google sign in error:', error);
+      isLoading = false;
+      loadingProvider = null;
     }
   }
 </script>
@@ -148,7 +135,7 @@
   <meta name="description" content="Sign in to your AutumnsGrove account via Heartwood" />
 </svelte:head>
 
-<main class="min-h-screen flex flex-col items-center justify-center px-6 py-12">
+<main class="min-h-screen flex flex-col items-center justify-center px-6 py-12 transition-colors duration-1000 {seasonalBg()}">
   <!-- Logo -->
   <div class="mb-8">
     <a href="/" class="text-grove-600 hover:text-grove-700 transition-colors" aria-label="Heartwood Home">
@@ -157,21 +144,15 @@
   </div>
 
   <!-- Card -->
-  <div class="card-elevated w-full max-w-sm p-8">
-    <h1 class="text-2xl font-serif text-bark dark:text-gray-100 mb-2 text-center">Sign In</h1>
+  <Glass variant="card" class="w-full max-w-sm p-8 rounded-2xl">
+    <h1 class="text-2xl font-serif text-bark dark:text-gray-100 mb-2 text-center">Welcome back</h1>
 
     <p class="text-bark/60 dark:text-gray-400 font-sans text-center mb-6">
-      {#if view === 'providers'}
-        Choose how you'd like to sign in
-      {:else if view === 'email'}
-        Enter your email to receive a magic link
-      {:else}
-        Check your inbox
-      {/if}
+      Sign in to continue to Grove
     </p>
 
     <!-- Error from OAuth callback -->
-    {#if data.error && view === 'providers'}
+    {#if data.error}
       <div class="alert alert-error mb-4">
         <p class="font-medium">{data.error}</p>
         {#if data.errorDescription}
@@ -187,140 +168,71 @@
       </div>
     {/if}
 
-    <!-- Success message -->
-    {#if successMessage && view === 'sent'}
-      <div class="alert alert-success mb-4">
-        <p class="text-sm">{successMessage}</p>
-      </div>
-    {/if}
-
-    <!-- Provider Selection View -->
-    {#if view === 'providers'}
-      <div class="space-y-3">
+    <!-- Auth Buttons -->
+    <div class="space-y-3">
+      <!-- Passkey (Primary) - Only shown if device supports it -->
+      {#if supportsPasskeys}
         <button
           type="button"
-          onclick={handleGoogleSignIn}
-          class="btn-provider"
+          onclick={handlePasskeySignIn}
+          class="w-full flex items-center justify-center gap-3 px-6 py-3.5
+            bg-grove-600 hover:bg-grove-700 text-white rounded-xl font-sans font-medium
+            transition-all duration-200
+            focus:outline-none focus:ring-2 focus:ring-grove-500 focus:ring-offset-2
+            disabled:opacity-50 disabled:cursor-not-allowed"
           disabled={isLoading}
         >
-          <GoogleIcon />
-          Continue with Google
+          {#if loadingProvider === 'passkey'}
+            <Loader2 class="w-5 h-5 animate-spin" />
+            Signing in...
+          {:else}
+            <Fingerprint class="w-5 h-5" />
+            Sign in with Passkey
+          {/if}
         </button>
 
-        {#if supportsPasskeys}
-          <button
-            type="button"
-            onclick={handlePasskeySignIn}
-            class="btn-provider"
-            disabled={isLoading}
-          >
-            <KeyRound class="w-5 h-5" />
-            Sign in with Passkey
-          </button>
-        {/if}
-      </div>
+        <div class="flex items-center my-4">
+          <div class="flex-1 h-px bg-grove-200 dark:bg-gray-600"></div>
+          <span class="px-4 text-bark/50 dark:text-gray-500 text-sm font-sans">or</span>
+          <div class="flex-1 h-px bg-grove-200 dark:bg-gray-600"></div>
+        </div>
+      {/if}
 
-      <div class="divider">
-        <span>or</span>
-      </div>
-
+      <!-- Google (Fallback) -->
       <button
         type="button"
-        onclick={() => { view = 'email'; errorMessage = ''; }}
-        class="btn-primary w-full flex items-center justify-center gap-2"
+        onclick={handleGoogleSignIn}
+        class="w-full flex items-center justify-center gap-3 px-6 py-3.5
+          bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm
+          border border-grove-200 dark:border-gray-600 rounded-xl font-sans font-medium
+          text-bark dark:text-gray-100 hover:bg-white dark:hover:bg-slate-700
+          transition-all duration-200
+          focus:outline-none focus:ring-2 focus:ring-grove-500 focus:ring-offset-2
+          disabled:opacity-50 disabled:cursor-not-allowed"
         disabled={isLoading}
       >
-        <MailIcon />
-        Sign in with Email
+        {#if loadingProvider === 'google'}
+          <Loader2 class="w-5 h-5 animate-spin" />
+          Signing in...
+        {:else}
+          <GoogleIcon />
+          Continue with Google
+        {/if}
       </button>
-    {/if}
+    </div>
 
-    <!-- Email Entry View -->
-    {#if view === 'email'}
-      <form onsubmit={(e) => { e.preventDefault(); sendMagicLink(); }}>
-        <div class="mb-4">
-          <label for="email" class="block text-sm font-sans font-medium text-bark dark:text-gray-200 mb-2">
-            Email address
-          </label>
-          <input
-            type="email"
-            id="email"
-            bind:value={email}
-            placeholder="you@example.com"
-            class="input-field"
-            autocomplete="username webauthn"
-            required
-            disabled={isLoading}
-          />
-        </div>
-
-        <button
-          type="submit"
-          class="btn-primary w-full mb-4"
-          disabled={isLoading || !email}
-        >
-          {isLoading ? 'Sending...' : 'Send Magic Link'}
-        </button>
-
-        <button
-          type="button"
-          onclick={() => { view = 'providers'; email = ''; errorMessage = ''; }}
-          class="w-full text-sm text-bark/60 dark:text-gray-400 hover:text-grove-600 dark:hover:text-grove-400 font-sans transition-colors"
-        >
-          Back to sign in options
-        </button>
-      </form>
-    {/if}
-
-    <!-- Magic Link Sent View -->
-    {#if view === 'sent'}
-      <div class="text-center">
-        <div class="mb-6">
-          <div class="w-16 h-16 bg-grove-100 dark:bg-grove-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
-            <MailIcon class="w-8 h-8 text-grove-600 dark:text-grove-400" />
-          </div>
-          <p class="text-bark dark:text-gray-200 font-medium">
-            Magic link sent to
-          </p>
-          <p class="text-grove-600 dark:text-grove-400 font-mono text-sm mt-1">
-            {email}
-          </p>
-        </div>
-
-        <p class="text-sm text-bark/60 dark:text-gray-400 mb-6">
-          Click the link in your email to sign in. The link expires in 10 minutes.
-        </p>
-
-        <div class="flex flex-col gap-2">
-          <button
-            type="button"
-            onclick={() => { sendMagicLink(); }}
-            class="text-sm text-bark/60 dark:text-gray-400 hover:text-grove-600 dark:hover:text-grove-400 font-sans transition-colors"
-            disabled={isLoading}
-          >
-            {isLoading ? 'Sending...' : 'Resend magic link'}
-          </button>
-          <button
-            type="button"
-            onclick={() => { view = 'email'; successMessage = ''; }}
-            class="text-sm text-bark/60 dark:text-gray-400 hover:text-grove-600 dark:hover:text-grove-400 font-sans transition-colors"
-          >
-            Use a different email
-          </button>
-          <button
-            type="button"
-            onclick={() => { view = 'providers'; email = ''; successMessage = ''; }}
-            class="text-sm text-bark/60 dark:text-gray-400 hover:text-grove-600 dark:hover:text-grove-400 font-sans transition-colors"
-          >
-            Back to sign in options
-          </button>
-        </div>
-      </div>
-    {/if}
-  </div>
+    <!-- Help text -->
+    <p class="mt-6 text-xs text-bark/50 dark:text-gray-500 text-center font-sans leading-relaxed">
+      {#if supportsPasskeys}
+        Passkeys are the fastest and most secure way to sign in.
+      {:else}
+        Sign in with your Google account to continue.
+      {/if}
+    </p>
+  </Glass>
 
   <!-- Footer -->
   <p class="mt-8 text-sm text-bark/50 dark:text-gray-500 font-sans">
-    Powered by <a href="https://heartwood.grove.place" class="hover:text-grove-600 dark:hover:text-grove-400 transition-colors">Heartwood</a>
+    Powered by <a href="/" class="hover:text-grove-600 dark:hover:text-grove-400 transition-colors">Heartwood</a>
   </p>
 </main>

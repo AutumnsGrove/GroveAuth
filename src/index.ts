@@ -11,6 +11,7 @@ import { securityHeaders } from './middleware/security.js';
 import { corsMiddleware } from './middleware/cors.js';
 
 // Routes
+import login from './routes/login.js';
 import tokenRoutes from './routes/token.js';
 import verifyRoutes from './routes/verify.js';
 import health from './routes/health.js';
@@ -32,6 +33,7 @@ app.use('*', securityHeaders);
 app.use('*', corsMiddleware);
 
 // Mount routes
+app.route('/login', login);
 app.route('/token', tokenRoutes);
 app.route('/auth', device);
 

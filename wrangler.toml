@@ -60,9 +60,11 @@ id = "7cfbd9e67125405994b49ecf80a372a4"
 [placement]
 mode = "smart"
 
-# Keepalive cron - prevents cold starts for auth requests
+# Cron triggers
+# - Every minute: keepalive (warm worker + D1 connection)
+# - Daily at midnight UTC: maintenance (audit log cleanup)
 [triggers]
-crons = ["* * * * *"]  # Every minute: warm worker + D1 connection
+crons = ["* * * * *", "0 0 * * *"]
 
 # Secrets (set via `wrangler secret put <NAME>`):
 # - JWT_PRIVATE_KEY: RSA private key for signing JWTs (PEM format)

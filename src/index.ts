@@ -241,7 +241,7 @@ async function warmRecentSessionDOs(env: Env): Promise<void> {
 
 export default {
   fetch: (request: Request, env: Env, ctx: ExecutionContext) => app.fetch(request, env, ctx),
-  scheduled: async (_controller: ScheduledController, env: Env, _ctx: ExecutionContext) => {
+  scheduled: async (controller: ScheduledController, env: Env, _ctx: ExecutionContext) => {
     // Keepalive: warm all cold-start-prone resources
     // This runs every minute to keep the worker and its dependencies hot
     await Promise.all([
@@ -254,5 +254,25 @@ export default {
       warmRecentSessionDOs(env),
     ]);
     // Note: Cron only warms ONE region; users in other regions may still see cold starts
+
+    // Daily maintenance: cleanup old audit logs (run once per day at midnight UTC)
+    if (controller.cron === '0 0 * * *') {
+      try {
+        const { cleanupOldAuditLogs } = await import('./db/queries.js');
+        const deleted = await cleanupOldAuditLogs(env.DB, 90); // 90-day retention
+        if (deleted > 0) {
+          console.log(`[Maintenance] Cleaned up ${deleted} old audit log entries`);
+        }
+        // Alert if deletion count is unexpectedly high (potential attack indicator)
+        if (deleted > 10000) {
+          console.warn(`[Maintenance] High audit log deletion count: ${deleted} entries`);
+        }
+      } catch (error) {
+        console.error('[Maintenance] Failed to cleanup audit logs:', error);
+      }
+    } else if (controller.cron !== '* * * * *') {
+      // Log unknown cron patterns for debugging (keepalive is handled above)
+      console.warn('[Cron] Unknown cron pattern executed:', controller.cron);
+    }
   },
 };

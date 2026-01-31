@@ -1052,3 +1052,157 @@ In Cloudflare Dashboard:
 **DO not waking up:**
 - Check wrangler.toml migration tag
 - Verify class_name matches exactly
+
+---
+
+## Better Auth Session Bridge
+
+*Added 2026-01-31*
+
+### The Problem
+
+Better Auth handles OAuth, magic links, and passkeys beautifully. When a user signs in via Google, BA creates a `ba_session` in D1 and sets a `better-auth.session_token` cookie.
+
+But this creates two separate session systems:
+- **BA sessions**: Created by OAuth/magic links/passkeys, stored in D1
+- **SessionDO sessions**: Our fast, device-aware session system
+
+OAuth users only got BA sessions. They couldn't see their devices in `/session/list`. The validation cascade had to check multiple places.
+
+### The Solution: Session Bridge
+
+When BA creates a session, we also create a SessionDO session. Both cookies get set. SessionDO becomes the primary session system while BA handles the auth *flows*.
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│  USER CLICKS "SIGN IN WITH GOOGLE"                                  │
+└─────────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│  BETTER AUTH                                                        │
+│  1. Redirect to Google OAuth                                        │
+│  2. Handle callback, verify tokens                                  │
+│  3. Create ba_session in D1                                         │
+│                              │                                      │
+│                              ▼                                      │
+│  ════════════════════════════════════════════════════════════════   │
+│  ║  SESSION BRIDGE (databaseHooks.session.create.after)          ║  │
+│  ║  • Get SessionDO for user                                     ║  │
+│  ║  • Call sessionDO.createSession()                             ║  │
+│  ║  • Store sessionId for response wrapper                       ║  │
+│  ════════════════════════════════════════════════════════════════   │
+│                              │                                      │
+│  4. Set better-auth.session_token cookie                            │
+└─────────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│  RESPONSE WRAPPER (in betterAuth.ts)                                │
+│  • Read sessionId from bridge result                                │
+│  • Create grove_session cookie                                      │
+│  • Append to response                                               │
+└─────────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│  USER BROWSER                                                       │
+│  Cookies set:                                                       │
+│  • better-auth.session_token (BA's internal state)                  │
+│  • grove_session (SessionDO - primary session)                      │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### How It Works
+
+**Three files coordinate the bridge:**
+
+1. **`src/lib/sessionBridge.ts`** — Per-request state management
+   - `registerRequestForBridge()` — Called before BA handler, stores env context
+   - `bridgeSessionToSessionDO()` — Creates the SessionDO session
+   - `getSessionBridgeResult()` — Retrieves sessionId for cookie creation
+
+2. **`src/auth/index.ts`** — BA configuration with hook
+   ```typescript
+   databaseHooks: {
+     session: {
+       create: {
+         after: async (session, context) => {
+           const request = context?.request;
+           if (!request) return;
+
+           const reqContext = getRequestContext(request);
+           if (!reqContext) return;
+
+           await bridgeSessionToSessionDO(request, session, reqContext.env);
+         },
+       },
+     },
+   },
+   ```
+
+3. **`src/routes/betterAuth.ts`** — Response wrapper
+   ```typescript
+   // Before BA handler
+   registerRequestForBridge(c.req.raw, c.env);
+
+   // After BA handler
+   const bridgeResult = getSessionBridgeResult(c.req.raw);
+   if (bridgeResult?.sessionId) {
+     const cookieHeader = await createSessionCookieHeader(...);
+     // Append to response
+   }
+   ```
+
+### Why WeakMap?
+
+The bridge uses WeakMaps keyed on Request objects:
+
+```typescript
+const pendingRequests = new WeakMap<Request, PendingRequestContext>();
+const pendingBridges = new WeakMap<Request, SessionBridgeResult>();
+```
+
+This pattern works because:
+- Each HTTP request gets a unique Request object
+- WeakMap doesn't prevent garbage collection
+- No cleanup needed—memory freed when request completes
+- Thread-safe (each request is isolated)
+
+### Error Handling
+
+The bridge is fault-tolerant. If SessionDO creation fails:
+- BA session still works (user is authenticated)
+- Error is logged, not thrown
+- Fallback cascade catches BA sessions
+
+```typescript
+} catch (error) {
+  console.error('[SessionBridge] Failed:', error);
+  // Don't throw - BA session is still valid
+  return { sessionId: '', userId, error: error.message };
+}
+```
+
+### Testing the Bridge
+
+After OAuth login, check both cookies:
+
+```bash
+# In browser dev tools, check cookies for .grove.place:
+# ✅ better-auth.session_token — BA's session
+# ✅ grove_session — SessionDO session
+
+# Verify SessionDO session works:
+curl -H "Cookie: grove_session=..." https://auth-api.grove.place/session/list
+```
+
+### Migration Path
+
+**Existing BA sessions** continue working via the validation cascade. The bridge only affects *new* logins.
+
+After ~7 days (BA session expiry), most users will have fresh sessions with both cookies. The cascade catches stragglers.
+
+---
+
+*The bridge connects two forests—BA handles the journey, SessionDO manages the destination.*

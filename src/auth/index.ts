@@ -124,7 +124,7 @@ export function createAuth(env: Env, cf?: CloudflareGeolocation) {
             debugLogs: true,  // Enable debug logging to see errors
           },
         },
-        kv: env.SESSION_KV,
+        // kv: env.SESSION_KV,  // Disabled: KV session bug (PR #7583) - sessions lack ID field
       },
       {
         // Disable Better Auth's built-in rate limiting
@@ -160,6 +160,19 @@ export function createAuth(env: Env, cf?: CloudflareGeolocation) {
         secure: true,
         sameSite: 'lax',  // Must be 'lax' for OAuth redirects to work
         path: '/',
+      },
+      // OAuth state cookie needs SameSite=None because it's set via cross-origin POST
+      // (autumn.grove.place POSTs to auth-api.grove.place/api/auth/sign-in/social)
+      cookies: {
+        oauth_state: {
+          name: 'better-auth.oauth_state',
+          attributes: {
+            sameSite: 'none',  // Required for cross-origin POST responses
+            secure: true,
+            httpOnly: true,
+            path: '/',
+          },
+        },
       },
     },
 

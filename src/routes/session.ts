@@ -27,6 +27,7 @@ import {
   clearSessionCookieHeader,
   parseSessionCookie,
 } from '../lib/session.js';
+import { validateSession as validateBetterAuthSession } from '../lib/server/session.js';
 import type { SessionDO } from '../durables/SessionDO.js';
 import { checkRouteRateLimit } from '../middleware/rateLimit.js';
 import { getClientIP } from '../middleware/security.js';
@@ -159,6 +160,23 @@ session.post('/validate', async (c) => {
         });
       }
     }
+  }
+
+  // Fallback to Better Auth session (ba_session table)
+  // This handles sessions created via OAuth through Better Auth
+  const betterAuthUser = await validateBetterAuthSession(c.req.raw, c.env);
+  if (betterAuthUser) {
+    return c.json({
+      valid: true,
+      user: {
+        id: betterAuthUser.id,
+        email: betterAuthUser.email,
+        name: betterAuthUser.name || '',
+        avatarUrl: betterAuthUser.image || '',
+        isAdmin: betterAuthUser.isAdmin,
+      },
+      session: null, // Better Auth manages its own sessions
+    });
   }
 
   return c.json({ valid: false });

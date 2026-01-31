@@ -69,6 +69,9 @@ const SESSION_CACHE_TTL = 300;
 
 /**
  * Extract session token from request cookies
+ *
+ * Better Auth signs cookies in format: `token.signature`
+ * We need to extract the raw token (before the dot) for DB lookup.
  */
 function getSessionToken(request: Request): string | null {
   const cookieHeader = request.headers.get('Cookie');
@@ -84,12 +87,18 @@ function getSessionToken(request: Request): string | null {
   );
 
   // Try Better Auth cookie names
-  return (
+  const signedToken =
     cookies['better-auth.session_token'] ||
     cookies['__Secure-better-auth.session_token'] ||
     cookies['session_token'] ||
-    null
-  );
+    null;
+
+  if (!signedToken) return null;
+
+  // Better Auth signs cookies as `token.signature` - extract the raw token
+  // The token is the part before the first dot
+  const rawToken = signedToken.split('.')[0];
+  return rawToken || null;
 }
 
 /**

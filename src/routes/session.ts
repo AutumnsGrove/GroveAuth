@@ -10,27 +10,31 @@
  * - GET /session/check - Legacy compatibility endpoint
  */
 
-import { Hono } from 'hono';
-import type { Env } from '../types.js';
+import { Hono } from "hono";
+import type { Env } from "../types.js";
 import {
   getSessionByTokenHash,
   getUserById,
   getClientByClientId,
   getUserClientPreference,
   isEmailAdmin,
-} from '../db/queries.js';
-import { hashSecret } from '../utils/crypto.js';
-import { verifyAccessToken } from '../services/jwt.js';
-import { createDbSession } from '../db/session.js';
+} from "../db/queries.js";
+import { hashSecret } from "../utils/crypto.js";
+import { verifyAccessToken } from "../services/jwt.js";
+import { createDbSession } from "../db/session.js";
 import {
   getSessionFromRequest,
   clearSessionCookieHeader,
   parseSessionCookie,
-} from '../lib/session.js';
-import { validateSession as validateBetterAuthSession } from '../lib/server/session.js';
-import type { SessionDO } from '../durables/SessionDO.js';
-import { checkRouteRateLimit } from '../middleware/rateLimit.js';
-import { getClientIP } from '../middleware/security.js';
+} from "../lib/session.js";
+import {
+  validateSession as validateBetterAuthSession,
+  invalidateSession as invalidateBetterAuthSession,
+  invalidateAllUserSessions as invalidateAllBetterAuthSessions,
+} from "../lib/server/session.js";
+import type { SessionDO } from "../durables/SessionDO.js";
+import { checkRouteRateLimit } from "../middleware/rateLimit.js";
+import { getClientIP } from "../middleware/security.js";
 import {
   RATE_LIMIT_WINDOW,
   RATE_LIMIT_SESSION_VALIDATE,
@@ -41,7 +45,7 @@ import {
   RATE_LIMIT_SESSION_DELETE,
   RATE_LIMIT_SESSION_CHECK,
   RATE_LIMIT_SESSION_SERVICE,
-} from '../utils/constants.js';
+} from "../utils/constants.js";
 
 const session = new Hono<{ Bindings: Env }>();
 
@@ -50,30 +54,37 @@ const session = new Hono<{ Bindings: Env }>();
  * Validate session and return user info
  * Supports: grove_session cookie (SessionDO) -> access_token cookie (JWT) -> session cookie (D1)
  */
-session.post('/validate', async (c) => {
+session.post("/validate", async (c) => {
   const db = createDbSession(c.env);
 
   // Rate limit by IP
   const rateLimit = await checkRouteRateLimit(
     db,
-    'session_validate',
+    "session_validate",
     getClientIP(c.req.raw),
     RATE_LIMIT_SESSION_VALIDATE,
-    RATE_LIMIT_WINDOW
+    RATE_LIMIT_WINDOW,
   );
   if (!rateLimit.allowed) {
     return c.json(
-      { error: 'rate_limit', message: 'Too many requests. Please try again later.', retry_after: rateLimit.retryAfter },
-      429
+      {
+        error: "rate_limit",
+        message: "Too many requests. Please try again later.",
+        retry_after: rateLimit.retryAfter,
+      },
+      429,
     );
   }
 
   // Try SessionDO first (new system)
-  const parsedSession = await getSessionFromRequest(c.req.raw, c.env.SESSION_SECRET);
+  const parsedSession = await getSessionFromRequest(
+    c.req.raw,
+    c.env.SESSION_SECRET,
+  );
 
   if (parsedSession) {
     const sessionDO = c.env.SESSIONS.get(
-      c.env.SESSIONS.idFromName(`session:${parsedSession.userId}`)
+      c.env.SESSIONS.idFromName(`session:${parsedSession.userId}`),
     ) as DurableObjectStub<SessionDO>;
 
     const result = await sessionDO.validateSession(parsedSession.sessionId);
@@ -104,7 +115,7 @@ session.post('/validate', async (c) => {
   }
 
   // Fallback to JWT access_token cookie
-  const cookieHeader = c.req.header('Cookie') || '';
+  const cookieHeader = c.req.header("Cookie") || "";
   const accessTokenMatch = cookieHeader.match(/access_token=([^;]+)/);
 
   if (accessTokenMatch) {
@@ -171,8 +182,8 @@ session.post('/validate', async (c) => {
       user: {
         id: betterAuthUser.id,
         email: betterAuthUser.email,
-        name: betterAuthUser.name || '',
-        avatarUrl: betterAuthUser.image || '',
+        name: betterAuthUser.name || "",
+        avatarUrl: betterAuthUser.image || "",
         isAdmin: betterAuthUser.isAdmin,
       },
       session: null, // Better Auth manages its own sessions
@@ -185,49 +196,82 @@ session.post('/validate', async (c) => {
 /**
  * POST /session/revoke
  * Revoke current session (logout)
+ *
+ * Supports both SessionDO sessions (grove_session) and Better Auth sessions
+ * (better-auth.session_token). Will attempt to revoke whichever is present.
  */
-session.post('/revoke', async (c) => {
+session.post("/revoke", async (c) => {
   const db = createDbSession(c.env);
 
   // Rate limit by IP
   const rateLimit = await checkRouteRateLimit(
     db,
-    'session_revoke',
+    "session_revoke",
     getClientIP(c.req.raw),
     RATE_LIMIT_SESSION_REVOKE,
-    RATE_LIMIT_WINDOW
+    RATE_LIMIT_WINDOW,
   );
   if (!rateLimit.allowed) {
     return c.json(
-      { error: 'rate_limit', message: 'Too many requests. Please try again later.', retry_after: rateLimit.retryAfter },
-      429
+      {
+        error: "rate_limit",
+        message: "Too many requests. Please try again later.",
+        retry_after: rateLimit.retryAfter,
+      },
+      429,
     );
   }
 
-  const parsedSession = await getSessionFromRequest(c.req.raw, c.env.SESSION_SECRET);
+  let sessionRevoked = false;
 
-  if (!parsedSession) {
-    return c.json({ success: false, error: 'No session' }, 401);
+  // Try SessionDO session first (grove_session cookie)
+  const parsedSession = await getSessionFromRequest(
+    c.req.raw,
+    c.env.SESSION_SECRET,
+  );
+  if (parsedSession) {
+    const sessionDO = c.env.SESSIONS.get(
+      c.env.SESSIONS.idFromName(`session:${parsedSession.userId}`),
+    ) as DurableObjectStub<SessionDO>;
+    await sessionDO.revokeSession(parsedSession.sessionId);
+    sessionRevoked = true;
   }
 
-  const sessionDO = c.env.SESSIONS.get(
-    c.env.SESSIONS.idFromName(`session:${parsedSession.userId}`)
-  ) as DurableObjectStub<SessionDO>;
+  // Also try Better Auth session (better-auth.session_token cookie)
+  // This handles OAuth logins that don't create SessionDO sessions
+  const cookieHeader = c.req.header("Cookie") || "";
+  const betterAuthCookieMatch = cookieHeader.match(
+    /(?:__Secure-)?better-auth\.session_token=([^;]+)/,
+  );
+  if (betterAuthCookieMatch) {
+    // Extract raw token from signed cookie (format: token.signature)
+    const signedToken = betterAuthCookieMatch[1];
+    const rawToken = signedToken.split(".")[0];
+    if (rawToken) {
+      await invalidateBetterAuthSession(rawToken, c.env);
+      sessionRevoked = true;
+    }
+  }
 
-  await sessionDO.revokeSession(parsedSession.sessionId);
+  if (!sessionRevoked) {
+    return c.json({ success: false, error: "No session found" }, 401);
+  }
 
   // Clear all session-related cookies
   const clearCookies = [
     clearSessionCookieHeader(),
-    'access_token=; Path=/; HttpOnly; Secure; SameSite=Strict; Domain=.grove.place; Max-Age=0',
-    'refresh_token=; Path=/; HttpOnly; Secure; SameSite=Strict; Domain=.grove.place; Max-Age=0',
+    "access_token=; Path=/; HttpOnly; Secure; SameSite=Strict; Domain=.grove.place; Max-Age=0",
+    "refresh_token=; Path=/; HttpOnly; Secure; SameSite=Strict; Domain=.grove.place; Max-Age=0",
+    // Clear Better Auth cookies (both prefixed and unprefixed)
+    "better-auth.session_token=; Path=/; HttpOnly; Secure; SameSite=Lax; Domain=.grove.place; Max-Age=0",
+    "__Secure-better-auth.session_token=; Path=/; HttpOnly; Secure; SameSite=Lax; Domain=.grove.place; Max-Age=0",
   ];
 
   return new Response(JSON.stringify({ success: true }), {
     status: 200,
     headers: {
-      'Content-Type': 'application/json',
-      'Set-Cookie': clearCookies.join(', '),
+      "Content-Type": "application/json",
+      "Set-Cookie": clearCookies.join(", "),
     },
   });
 });
@@ -235,29 +279,30 @@ session.post('/revoke', async (c) => {
 /**
  * POST /session/revoke-all
  * Revoke all sessions (logout from all devices)
+ *
+ * Supports both SessionDO sessions (grove_session) and Better Auth sessions
+ * (better-auth.session_token). Will revoke from both systems if available.
  */
-session.post('/revoke-all', async (c) => {
+session.post("/revoke-all", async (c) => {
   const db = createDbSession(c.env);
 
   // Rate limit by IP (stricter limit: 3 per hour)
   const rateLimit = await checkRouteRateLimit(
     db,
-    'session_revoke_all',
+    "session_revoke_all",
     getClientIP(c.req.raw),
     RATE_LIMIT_SESSION_REVOKE_ALL,
-    RATE_LIMIT_SESSION_REVOKE_ALL_WINDOW
+    RATE_LIMIT_SESSION_REVOKE_ALL_WINDOW,
   );
   if (!rateLimit.allowed) {
     return c.json(
-      { error: 'rate_limit', message: 'Too many requests. Please try again later.', retry_after: rateLimit.retryAfter },
-      429
+      {
+        error: "rate_limit",
+        message: "Too many requests. Please try again later.",
+        retry_after: rateLimit.retryAfter,
+      },
+      429,
     );
-  }
-
-  const parsedSession = await getSessionFromRequest(c.req.raw, c.env.SESSION_SECRET);
-
-  if (!parsedSession) {
-    return c.json({ success: false, error: 'No session' }, 401);
   }
 
   let keepCurrent = false;
@@ -268,47 +313,108 @@ session.post('/revoke-all', async (c) => {
     // No body, revoke all
   }
 
-  const sessionDO = c.env.SESSIONS.get(
-    c.env.SESSIONS.idFromName(`session:${parsedSession.userId}`)
-  ) as DurableObjectStub<SessionDO>;
+  let userId: string | null = null;
+  let sessionDoRevokeCount = 0;
+  let betterAuthRevoked = false;
 
-  const count = await sessionDO.revokeAllSessions(
-    keepCurrent ? parsedSession.sessionId : undefined
+  // Try SessionDO session first (grove_session cookie)
+  const parsedSession = await getSessionFromRequest(
+    c.req.raw,
+    c.env.SESSION_SECRET,
   );
+  if (parsedSession) {
+    userId = parsedSession.userId;
 
-  return c.json({ success: true, revokedCount: count });
+    const sessionDO = c.env.SESSIONS.get(
+      c.env.SESSIONS.idFromName(`session:${parsedSession.userId}`),
+    ) as DurableObjectStub<SessionDO>;
+
+    sessionDoRevokeCount = await sessionDO.revokeAllSessions(
+      keepCurrent ? parsedSession.sessionId : undefined,
+    );
+  }
+
+  // Also try Better Auth session to get user ID and revoke BA sessions
+  const betterAuthUser = await validateBetterAuthSession(c.req.raw, c.env);
+  if (betterAuthUser) {
+    userId = betterAuthUser.id;
+
+    // Revoke all Better Auth sessions for this user
+    // Note: keepCurrent is ignored for BA sessions - we revoke all
+    // (BA doesn't have a clean way to keep current session when revoking all)
+    betterAuthRevoked = await invalidateAllBetterAuthSessions(
+      betterAuthUser.id,
+      c.env,
+    );
+  }
+
+  if (!userId) {
+    return c.json({ success: false, error: "No session" }, 401);
+  }
+
+  // Clear all session-related cookies
+  const clearCookies = [
+    clearSessionCookieHeader(),
+    "access_token=; Path=/; HttpOnly; Secure; SameSite=Strict; Domain=.grove.place; Max-Age=0",
+    "refresh_token=; Path=/; HttpOnly; Secure; SameSite=Strict; Domain=.grove.place; Max-Age=0",
+    // Clear Better Auth cookies (both prefixed and unprefixed)
+    "better-auth.session_token=; Path=/; HttpOnly; Secure; SameSite=Lax; Domain=.grove.place; Max-Age=0",
+    "__Secure-better-auth.session_token=; Path=/; HttpOnly; Secure; SameSite=Lax; Domain=.grove.place; Max-Age=0",
+  ];
+
+  return new Response(
+    JSON.stringify({
+      success: true,
+      revokedCount: sessionDoRevokeCount,
+      betterAuthRevoked,
+    }),
+    {
+      status: 200,
+      headers: {
+        "Content-Type": "application/json",
+        "Set-Cookie": clearCookies.join(", "),
+      },
+    },
+  );
 });
 
 /**
  * GET /session/list
  * List all active sessions for current user
  */
-session.get('/list', async (c) => {
+session.get("/list", async (c) => {
   const db = createDbSession(c.env);
 
   // Rate limit by IP
   const rateLimit = await checkRouteRateLimit(
     db,
-    'session_list',
+    "session_list",
     getClientIP(c.req.raw),
     RATE_LIMIT_SESSION_LIST,
-    RATE_LIMIT_WINDOW
+    RATE_LIMIT_WINDOW,
   );
   if (!rateLimit.allowed) {
     return c.json(
-      { error: 'rate_limit', message: 'Too many requests. Please try again later.', retry_after: rateLimit.retryAfter },
-      429
+      {
+        error: "rate_limit",
+        message: "Too many requests. Please try again later.",
+        retry_after: rateLimit.retryAfter,
+      },
+      429,
     );
   }
 
-  const parsedSession = await getSessionFromRequest(c.req.raw, c.env.SESSION_SECRET);
+  const parsedSession = await getSessionFromRequest(
+    c.req.raw,
+    c.env.SESSION_SECRET,
+  );
 
   if (!parsedSession) {
     return c.json({ sessions: [] }, 401);
   }
 
   const sessionDO = c.env.SESSIONS.get(
-    c.env.SESSIONS.idFromName(`session:${parsedSession.userId}`)
+    c.env.SESSIONS.idFromName(`session:${parsedSession.userId}`),
   ) as DurableObjectStub<SessionDO>;
 
   const sessions = await sessionDO.listSessions();
@@ -325,40 +431,47 @@ session.get('/list', async (c) => {
  * DELETE /session/:sessionId
  * Revoke a specific session by ID (must be own session)
  */
-session.delete('/:sessionId', async (c) => {
+session.delete("/:sessionId", async (c) => {
   const db = createDbSession(c.env);
 
   // Rate limit by IP
   const rateLimit = await checkRouteRateLimit(
     db,
-    'session_delete',
+    "session_delete",
     getClientIP(c.req.raw),
     RATE_LIMIT_SESSION_DELETE,
-    RATE_LIMIT_WINDOW
+    RATE_LIMIT_WINDOW,
   );
   if (!rateLimit.allowed) {
     return c.json(
-      { error: 'rate_limit', message: 'Too many requests. Please try again later.', retry_after: rateLimit.retryAfter },
-      429
+      {
+        error: "rate_limit",
+        message: "Too many requests. Please try again later.",
+        retry_after: rateLimit.retryAfter,
+      },
+      429,
     );
   }
 
-  const parsedSession = await getSessionFromRequest(c.req.raw, c.env.SESSION_SECRET);
+  const parsedSession = await getSessionFromRequest(
+    c.req.raw,
+    c.env.SESSION_SECRET,
+  );
 
   if (!parsedSession) {
-    return c.json({ success: false, error: 'No session' }, 401);
+    return c.json({ success: false, error: "No session" }, 401);
   }
 
-  const sessionIdToRevoke = c.req.param('sessionId');
+  const sessionIdToRevoke = c.req.param("sessionId");
 
   const sessionDO = c.env.SESSIONS.get(
-    c.env.SESSIONS.idFromName(`session:${parsedSession.userId}`)
+    c.env.SESSIONS.idFromName(`session:${parsedSession.userId}`),
   ) as DurableObjectStub<SessionDO>;
 
   const revoked = await sessionDO.revokeSession(sessionIdToRevoke);
 
   if (!revoked) {
-    return c.json({ success: false, error: 'Session not found' }, 404);
+    return c.json({ success: false, error: "Session not found" }, 404);
   }
 
   return c.json({ success: true });
@@ -368,30 +481,37 @@ session.delete('/:sessionId', async (c) => {
  * GET /session/check - Legacy compatibility endpoint
  * Check if user has valid session and get redirect info
  */
-session.get('/check', async (c) => {
+session.get("/check", async (c) => {
   const db = createDbSession(c.env);
 
   // Rate limit by IP
   const rateLimit = await checkRouteRateLimit(
     db,
-    'session_check',
+    "session_check",
     getClientIP(c.req.raw),
     RATE_LIMIT_SESSION_CHECK,
-    RATE_LIMIT_WINDOW
+    RATE_LIMIT_WINDOW,
   );
   if (!rateLimit.allowed) {
     return c.json(
-      { error: 'rate_limit', message: 'Too many requests. Please try again later.', retry_after: rateLimit.retryAfter },
-      429
+      {
+        error: "rate_limit",
+        message: "Too many requests. Please try again later.",
+        retry_after: rateLimit.retryAfter,
+      },
+      429,
     );
   }
 
   // Try SessionDO first (new system)
-  const parsedSession = await getSessionFromRequest(c.req.raw, c.env.SESSION_SECRET);
+  const parsedSession = await getSessionFromRequest(
+    c.req.raw,
+    c.env.SESSION_SECRET,
+  );
 
   if (parsedSession) {
     const sessionDO = c.env.SESSIONS.get(
-      c.env.SESSIONS.idFromName(`session:${parsedSession.userId}`)
+      c.env.SESSIONS.idFromName(`session:${parsedSession.userId}`),
     ) as DurableObjectStub<SessionDO>;
 
     const result = await sessionDO.validateSession(parsedSession.sessionId);
@@ -418,7 +538,7 @@ session.get('/check', async (c) => {
     }
   }
 
-  const cookieHeader = c.req.header('Cookie') || '';
+  const cookieHeader = c.req.header("Cookie") || "";
 
   // Try access_token (cross-subdomain auth)
   const accessTokenMatch = cookieHeader.match(/access_token=([^;]+)/);
@@ -432,7 +552,9 @@ session.get('/check', async (c) => {
         if (user) {
           const isAdmin = user.is_admin === 1 || isEmailAdmin(user.email);
           const clientId = payload.client_id as string | undefined;
-          const client = clientId ? await getClientByClientId(db, clientId) : null;
+          const client = clientId
+            ? await getClientByClientId(db, clientId)
+            : null;
           const prefs = await getUserClientPreference(db, user.id);
 
           return c.json({
@@ -507,21 +629,26 @@ session.get('/check', async (c) => {
  * Validate a session token for internal Grove services (like Mycelium)
  * Unlike /validate which uses cookies, this accepts the token in the request body
  */
-session.post('/validate-service', async (c) => {
+session.post("/validate-service", async (c) => {
   const db = createDbSession(c.env);
 
   // Rate limit by IP (higher limit for internal services)
   const rateLimit = await checkRouteRateLimit(
     db,
-    'session_service',
+    "session_service",
     getClientIP(c.req.raw),
     RATE_LIMIT_SESSION_SERVICE,
-    RATE_LIMIT_WINDOW
+    RATE_LIMIT_WINDOW,
   );
   if (!rateLimit.allowed) {
     return c.json(
-      { valid: false, error: 'rate_limit', message: 'Too many requests. Please try again later.', retry_after: rateLimit.retryAfter },
-      429
+      {
+        valid: false,
+        error: "rate_limit",
+        message: "Too many requests. Please try again later.",
+        retry_after: rateLimit.retryAfter,
+      },
+      429,
     );
   }
 
@@ -530,36 +657,42 @@ session.post('/validate-service', async (c) => {
     const body = await c.req.json<{ session_token: string }>();
     sessionToken = body.session_token;
   } catch {
-    return c.json({ valid: false, error: 'Invalid request body' }, 400);
+    return c.json({ valid: false, error: "Invalid request body" }, 400);
   }
 
   if (!sessionToken) {
-    return c.json({ valid: false, error: 'Missing session_token' }, 400);
+    return c.json({ valid: false, error: "Missing session_token" }, 400);
   }
 
   // Parse and verify the session token signature
-  const parsedSession = await parseSessionCookie(sessionToken, c.env.SESSION_SECRET);
+  const parsedSession = await parseSessionCookie(
+    sessionToken,
+    c.env.SESSION_SECRET,
+  );
 
   if (!parsedSession) {
-    return c.json({ valid: false, error: 'Invalid session token signature' }, 401);
+    return c.json(
+      { valid: false, error: "Invalid session token signature" },
+      401,
+    );
   }
 
   // Validate the session in SessionDO
   const sessionDO = c.env.SESSIONS.get(
-    c.env.SESSIONS.idFromName(`session:${parsedSession.userId}`)
+    c.env.SESSIONS.idFromName(`session:${parsedSession.userId}`),
   ) as DurableObjectStub<SessionDO>;
 
   const result = await sessionDO.validateSession(parsedSession.sessionId);
 
   if (!result.valid) {
-    return c.json({ valid: false, error: 'Session expired or revoked' }, 401);
+    return c.json({ valid: false, error: "Session expired or revoked" }, 401);
   }
 
   // Get user info
   const user = await getUserById(db, parsedSession.userId);
 
   if (!user) {
-    return c.json({ valid: false, error: 'User not found' }, 401);
+    return c.json({ valid: false, error: "User not found" }, 401);
   }
 
   const isAdmin = user.is_admin === 1 || isEmailAdmin(user.email);

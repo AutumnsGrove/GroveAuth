@@ -21,6 +21,10 @@ import type { Env } from '../types.js';
 import { isEmailAllowed } from '../db/queries.js';
 import { createDbSession } from '../db/session.js';
 import { schema } from '../db/auth.schema.js';
+import {
+  getRequestContext,
+  bridgeSessionToSessionDO,
+} from '../lib/sessionBridge.js';
 
 // Email template for magic link
 const MAGIC_LINK_EMAIL_HTML = (url: string) => `
@@ -320,6 +324,41 @@ export function createAuth(env: Env, cf?: CloudflareGeolocation) {
             console.log('[Auth] User created successfully');
             // Return in the format expected by Better Auth hooks
             return { data: user };
+          },
+        },
+      },
+
+      // Bridge Better Auth sessions to SessionDO for unified session management
+      session: {
+        create: {
+          after: async (session, context) => {
+            // Get the request from context (Better Auth passes it through)
+            const request = context?.request;
+            if (!request) {
+              console.warn('[SessionBridge] No request in context, skipping bridge');
+              return;
+            }
+
+            // Check if this request was registered for bridging
+            const reqContext = getRequestContext(request);
+            if (!reqContext) {
+              console.warn('[SessionBridge] Request not registered, skipping bridge');
+              return;
+            }
+
+            // Bridge the BA session to SessionDO
+            // This creates a parallel session in our Durable Object system
+            await bridgeSessionToSessionDO(
+              request,
+              {
+                id: session.id as string,
+                userId: session.userId as string,
+                expiresAt: session.expiresAt as Date,
+                ipAddress: session.ipAddress as string | undefined,
+                userAgent: session.userAgent as string | undefined,
+              },
+              reqContext.env
+            );
           },
         },
       },

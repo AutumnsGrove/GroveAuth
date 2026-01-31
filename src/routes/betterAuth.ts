@@ -32,6 +32,12 @@ import {
   passkeyAuthRateLimiter,
 } from '../middleware/rateLimit.js';
 import { SECURITY_PAGE_CSP } from '../utils/constants.js';
+import {
+  registerRequestForBridge,
+  getSessionBridgeResult,
+  cleanupRequestContext,
+} from '../lib/sessionBridge.js';
+import { createSessionCookieHeader } from '../lib/session.js';
 
 const betterAuthRoutes = new Hono<{ Bindings: Env }>();
 
@@ -63,6 +69,11 @@ betterAuthRoutes.post('/passkey/verify-authentication', passkeyAuthRateLimiter);
  *
  * Better Auth provides its own request handler that processes
  * all authentication-related requests under the /api/auth/* path.
+ *
+ * SessionDO Bridge:
+ * When BA creates a session (OAuth, magic link, passkey), the database hook
+ * bridges it to SessionDO. We then append the grove_session cookie to the
+ * response so users get both cookies.
  */
 betterAuthRoutes.all('/*', async (c) => {
   try {
@@ -81,11 +92,46 @@ betterAuthRoutes.all('/*', async (c) => {
 
     console.log('[BetterAuth] Request:', c.req.method, c.req.path);
 
+    // Register this request for SessionDO bridging
+    // The session hook will use this to create a SessionDO session
+    registerRequestForBridge(c.req.raw, c.env);
+
     // Create auth instance with current environment bindings and CF context
     const auth = createAuth(c.env, cf);
 
     // Better Auth handler expects a standard Request and returns a Response
-    const response = await auth.handler(c.req.raw);
+    let response = await auth.handler(c.req.raw);
+
+    // Check if a SessionDO session was created by the hook
+    // If so, append the grove_session cookie to the response
+    const bridgeResult = getSessionBridgeResult(c.req.raw);
+    if (bridgeResult && bridgeResult.sessionId && !bridgeResult.error) {
+      try {
+        const cookieHeader = await createSessionCookieHeader(
+          bridgeResult.sessionId,
+          bridgeResult.userId,
+          c.env.SESSION_SECRET
+        );
+
+        // Clone response and append our cookie
+        const newHeaders = new Headers(response.headers);
+        newHeaders.append('Set-Cookie', cookieHeader);
+
+        response = new Response(response.body, {
+          status: response.status,
+          statusText: response.statusText,
+          headers: newHeaders,
+        });
+
+        console.log('[BetterAuth] Added grove_session cookie for user', bridgeResult.userId);
+      } catch (cookieError) {
+        // Log but don't fail - BA session is still valid
+        console.error('[BetterAuth] Failed to add grove_session cookie:', cookieError);
+      }
+    }
+
+    // Clean up request context to prevent memory leaks
+    cleanupRequestContext(c.req.raw);
 
     // Log response status for debugging
     console.log('[BetterAuth] Response status:', response.status);

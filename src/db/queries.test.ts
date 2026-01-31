@@ -7,6 +7,7 @@ import {
   extractSubdomainFromRedirectUri,
   isActiveTenant,
   validateClientRedirectUri,
+  cleanupOldAuditLogs,
 } from './queries.js';
 
 // Mock D1Database
@@ -370,5 +371,137 @@ describe('validateClientRedirectUri', () => {
 
       expect(result).toBe(false);
     });
+  });
+});
+
+// ==================== Audit Log Cleanup Tests ====================
+
+describe('cleanupOldAuditLogs', () => {
+  const createMockDbWithChanges = (deletedRows: number = 0) => ({
+    prepare: vi.fn().mockReturnValue({
+      bind: vi.fn().mockReturnValue({
+        run: vi.fn().mockResolvedValue({
+          meta: { changes: deletedRows },
+        }),
+      }),
+    }),
+  });
+
+  it('should delete logs older than retention period', async () => {
+    const mockDb = createMockDbWithChanges(42);
+
+    const deleted = await cleanupOldAuditLogs(mockDb as any, 90);
+
+    expect(deleted).toBe(42);
+    expect(mockDb.prepare).toHaveBeenCalledWith('DELETE FROM audit_log WHERE created_at < ?');
+  });
+
+  it('should use 90-day default retention', async () => {
+    const mockDb = createMockDbWithChanges(0);
+    const prepareCall = vi.fn().mockReturnValue({
+      bind: vi.fn().mockReturnValue({
+        run: vi.fn().mockResolvedValue({ meta: { changes: 0 } }),
+      }),
+    });
+    mockDb.prepare = prepareCall;
+
+    await cleanupOldAuditLogs(mockDb as any);
+
+    // Verify the cutoff date is approximately 90 days ago
+    const bindCall = prepareCall.mock.results[0].value.bind;
+    expect(bindCall).toHaveBeenCalled();
+
+    const cutoffArg = bindCall.mock.calls[0][0];
+    const cutoffDate = new Date(cutoffArg);
+    const ninetyDaysAgo = new Date();
+    ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+
+    // Should be within 1 second of expected date
+    expect(Math.abs(cutoffDate.getTime() - ninetyDaysAgo.getTime())).toBeLessThan(1000);
+  });
+
+  it('should respect custom retention period', async () => {
+    const mockDb = createMockDbWithChanges(0);
+    const prepareCall = vi.fn().mockReturnValue({
+      bind: vi.fn().mockReturnValue({
+        run: vi.fn().mockResolvedValue({ meta: { changes: 0 } }),
+      }),
+    });
+    mockDb.prepare = prepareCall;
+
+    await cleanupOldAuditLogs(mockDb as any, 30); // 30 days
+
+    const bindCall = prepareCall.mock.results[0].value.bind;
+    const cutoffArg = bindCall.mock.calls[0][0];
+    const cutoffDate = new Date(cutoffArg);
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    expect(Math.abs(cutoffDate.getTime() - thirtyDaysAgo.getTime())).toBeLessThan(1000);
+  });
+
+  it('should return 0 when no logs deleted', async () => {
+    const mockDb = createMockDbWithChanges(0);
+
+    const deleted = await cleanupOldAuditLogs(mockDb as any, 90);
+
+    expect(deleted).toBe(0);
+  });
+
+  it('should handle missing meta.changes gracefully', async () => {
+    const mockDb = {
+      prepare: vi.fn().mockReturnValue({
+        bind: vi.fn().mockReturnValue({
+          run: vi.fn().mockResolvedValue({}), // No meta field
+        }),
+      }),
+    };
+
+    const deleted = await cleanupOldAuditLogs(mockDb as any, 90);
+
+    expect(deleted).toBe(0);
+  });
+
+  it('should handle very short retention periods', async () => {
+    const mockDb = createMockDbWithChanges(100);
+    const prepareCall = vi.fn().mockReturnValue({
+      bind: vi.fn().mockReturnValue({
+        run: vi.fn().mockResolvedValue({ meta: { changes: 100 } }),
+      }),
+    });
+    mockDb.prepare = prepareCall;
+
+    // 1 day retention - aggressive cleanup
+    const deleted = await cleanupOldAuditLogs(mockDb as any, 1);
+
+    expect(deleted).toBe(100);
+
+    const bindCall = prepareCall.mock.results[0].value.bind;
+    const cutoffArg = bindCall.mock.calls[0][0];
+    const cutoffDate = new Date(cutoffArg);
+    const oneDayAgo = new Date();
+    oneDayAgo.setDate(oneDayAgo.getDate() - 1);
+
+    expect(Math.abs(cutoffDate.getTime() - oneDayAgo.getTime())).toBeLessThan(1000);
+  });
+
+  it('should handle zero retention period', async () => {
+    const mockDb = createMockDbWithChanges(1000);
+    const prepareCall = vi.fn().mockReturnValue({
+      bind: vi.fn().mockReturnValue({
+        run: vi.fn().mockResolvedValue({ meta: { changes: 1000 } }),
+      }),
+    });
+    mockDb.prepare = prepareCall;
+
+    // 0 days retention - delete everything older than now
+    await cleanupOldAuditLogs(mockDb as any, 0);
+
+    const bindCall = prepareCall.mock.results[0].value.bind;
+    const cutoffArg = bindCall.mock.calls[0][0];
+    const cutoffDate = new Date(cutoffArg);
+
+    // Should be very close to now (within 1 second)
+    expect(Math.abs(cutoffDate.getTime() - Date.now())).toBeLessThan(1000);
   });
 });

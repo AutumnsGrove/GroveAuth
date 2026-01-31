@@ -123,7 +123,8 @@ betterAuthRoutes.all('/*', async (c) => {
           headers: newHeaders,
         });
 
-        console.log('[BetterAuth] Added grove_session cookie for user', bridgeResult.userId);
+        // Log with redacted ID to prevent exposure in log aggregation
+        console.log('[BetterAuth] Added grove_session cookie for user', bridgeResult.userId.slice(0, 6) + '...');
       } catch (cookieError) {
         // Log but don't fail - BA session is still valid
         console.error('[BetterAuth] Failed to add grove_session cookie:', cookieError);

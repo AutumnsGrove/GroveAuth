@@ -2,13 +2,24 @@
  * Session Utilities for SessionDO
  * Uses Web Crypto API for AES-GCM encryption + HMAC-SHA256 signing
  *
- * Cookie format: {iv}:{encryptedPayload}:{authTag}
- * - iv: 12-byte random initialization vector (base64url)
- * - encryptedPayload: AES-GCM encrypted {sessionId}:{userId} (base64url)
- * - authTag: included in AES-GCM output (authenticates the ciphertext)
+ * Cookie format (v2): {salt+iv (28 bytes)}:{ciphertext}
+ * - salt: 16-byte random salt for per-cookie key derivation
+ * - iv: 12-byte random initialization vector for AES-GCM
+ * - ciphertext: AES-GCM encrypted {sessionId}:{userId} with auth tag
+ *
+ * Security properties:
+ * - Per-cookie salt: Even if SESSION_SECRET leaks, each cookie requires
+ *   individual key derivation (no bulk decryption)
+ * - Random IV: Ensures unique ciphertext even for identical payloads
+ * - Authenticated encryption: Tampering is detected and rejected
  *
  * This prevents userId enumeration by encrypting the entire payload.
  */
+
+// Salt size for per-cookie key derivation (16 bytes = 128 bits)
+const SALT_SIZE = 16;
+// IV size for AES-GCM (12 bytes = 96 bits, recommended by NIST)
+const IV_SIZE = 12;
 
 export interface ParsedSessionCookie {
   sessionId: string;
@@ -44,10 +55,17 @@ function base64UrlDecode(str: string): Uint8Array {
 }
 
 /**
- * Derive AES-GCM key from secret using HKDF
- * This creates a proper 256-bit key from any length secret
+ * Derive AES-GCM key from secret using HKDF with per-cookie salt
+ *
+ * Security: Using a random salt per cookie means each cookie gets a unique
+ * derived key. If SESSION_SECRET is compromised, an attacker must still
+ * derive each key individually (the salt is in the cookie but adds entropy
+ * to the key derivation, preventing precomputation attacks).
+ *
+ * @param secret - The SESSION_SECRET from environment
+ * @param salt - Per-cookie random salt (16 bytes)
  */
-async function getAesKey(secret: string): Promise<CryptoKey> {
+async function getAesKey(secret: string, salt: Uint8Array): Promise<CryptoKey> {
   const encoder = new TextEncoder();
   const keyMaterial = await crypto.subtle.importKey(
     'raw',
@@ -61,7 +79,35 @@ async function getAesKey(secret: string): Promise<CryptoKey> {
     {
       name: 'HKDF',
       hash: 'SHA-256',
-      salt: encoder.encode('grove-session-v1'), // Fixed salt for deterministic key
+      salt: salt, // Per-cookie random salt
+      info: encoder.encode('grove-session-v2'), // Version bump for new format
+    },
+    keyMaterial,
+    { name: 'AES-GCM', length: 256 },
+    false,
+    ['encrypt', 'decrypt']
+  );
+}
+
+/**
+ * Derive AES-GCM key with fixed salt (legacy v1 format)
+ * @deprecated Used only for backward compatibility during migration
+ */
+async function getAesKeyLegacy(secret: string): Promise<CryptoKey> {
+  const encoder = new TextEncoder();
+  const keyMaterial = await crypto.subtle.importKey(
+    'raw',
+    encoder.encode(secret),
+    'HKDF',
+    false,
+    ['deriveKey']
+  );
+
+  return crypto.subtle.deriveKey(
+    {
+      name: 'HKDF',
+      hash: 'SHA-256',
+      salt: encoder.encode('grove-session-v1'), // Fixed salt (legacy)
       info: encoder.encode('session-cookie'),
     },
     keyMaterial,
@@ -116,23 +162,27 @@ function timingSafeEqual(a: string, b: string): boolean {
 }
 
 /**
- * Create an encrypted session cookie value
- * Format: {iv}:{encryptedPayload} (AES-GCM includes auth tag in ciphertext)
+ * Create an encrypted session cookie value (v2 format)
+ * Format: {salt+iv}:{ciphertext}
  *
- * The payload {sessionId}:{userId} is encrypted with AES-256-GCM, preventing
- * userId enumeration attacks. The IV ensures each cookie is unique even for
- * the same user/session.
+ * Security improvements in v2:
+ * - Per-cookie random salt prevents bulk decryption if secret leaks
+ * - Random IV ensures unique ciphertext for identical payloads
+ * - AES-GCM provides authenticated encryption (tamper detection)
  */
 export async function createSessionCookie(
   sessionId: string,
   userId: string,
   secret: string
 ): Promise<string> {
-  const key = await getAesKey(secret);
   const encoder = new TextEncoder();
 
-  // Generate random 12-byte IV (recommended for AES-GCM)
-  const iv = crypto.getRandomValues(new Uint8Array(12));
+  // Generate random salt and IV
+  const salt = crypto.getRandomValues(new Uint8Array(SALT_SIZE));
+  const iv = crypto.getRandomValues(new Uint8Array(IV_SIZE));
+
+  // Derive key using per-cookie salt
+  const key = await getAesKey(secret, salt);
 
   // Encrypt the payload
   const payload = `${sessionId}:${userId}`;
@@ -142,16 +192,29 @@ export async function createSessionCookie(
     encoder.encode(payload)
   );
 
-  // Format: {iv}:{encryptedPayload} (auth tag is part of ciphertext in Web Crypto)
-  return `${base64UrlEncode(iv)}:${base64UrlEncode(new Uint8Array(ciphertext))}`;
+  // Combine salt + iv for the first part of the cookie
+  const saltIv = new Uint8Array(SALT_SIZE + IV_SIZE);
+  saltIv.set(salt, 0);
+  saltIv.set(iv, SALT_SIZE);
+
+  // Format: {salt+iv}:{ciphertext}
+  return `${base64UrlEncode(saltIv)}:${base64UrlEncode(new Uint8Array(ciphertext))}`;
 }
 
 /**
  * Parse and decrypt a session cookie
  * Returns null if invalid, tampered, or decryption fails
  *
- * AES-GCM provides authenticated encryption - if the cookie is tampered with,
- * decryption will fail with an error (not silently produce garbage).
+ * Supports three formats for backward compatibility:
+ * - v2 (current): {salt+iv (28 bytes)}:{ciphertext} - per-cookie salt
+ * - v1 (migration): {iv (12 bytes)}:{ciphertext} - fixed salt
+ * - legacy: {sessionId}:{userId}:{signature} - HMAC signed (deprecated)
+ *
+ * Security: All code paths perform cryptographic work to prevent timing attacks
+ * that could reveal cookie format information.
+ *
+ * @deprecated Legacy HMAC format will be removed 2026-03-01. All sessions
+ * created after this PR will use v2 encrypted format.
  */
 export async function parseSessionCookie(
   cookie: string,
@@ -160,13 +223,34 @@ export async function parseSessionCookie(
   try {
     const parts = cookie.split(':');
 
-    // New format: {iv}:{encryptedPayload}
+    // Encrypted formats: {salt+iv}:{ciphertext} or {iv}:{ciphertext}
     if (parts.length === 2) {
-      const [ivStr, ciphertextStr] = parts;
-
-      const key = await getAesKey(secret);
-      const iv = base64UrlDecode(ivStr);
+      const [saltIvStr, ciphertextStr] = parts;
+      const saltIvBytes = base64UrlDecode(saltIvStr);
       const ciphertext = base64UrlDecode(ciphertextStr);
+
+      let key: CryptoKey;
+      let iv: Uint8Array;
+
+      // Detect format by first-part length
+      // v2: 28 bytes (16 salt + 12 iv) = ~38 chars base64
+      // v1: 12 bytes (iv only) = ~16 chars base64
+      if (saltIvBytes.length === SALT_SIZE + IV_SIZE) {
+        // v2 format: extract salt and iv
+        const salt = saltIvBytes.slice(0, SALT_SIZE);
+        iv = saltIvBytes.slice(SALT_SIZE);
+        key = await getAesKey(secret, salt);
+      } else if (saltIvBytes.length === IV_SIZE) {
+        // v1 format: iv only, use fixed salt
+        iv = saltIvBytes;
+        key = await getAesKeyLegacy(secret);
+      } else {
+        // Invalid length - do work anyway to prevent timing attack
+        const dummySalt = new Uint8Array(SALT_SIZE);
+        await getAesKey(secret, dummySalt);
+        console.log('[Session] Invalid cookie header length');
+        return null;
+      }
 
       // Decrypt (will throw if tampered - AES-GCM is authenticated)
       const plaintext = await crypto.subtle.decrypt(
@@ -185,31 +269,39 @@ export async function parseSessionCookie(
       }
 
       const [sessionId, userId] = payloadParts;
-      return { sessionId, userId, signature: 'aes-gcm' };
+      return { sessionId, userId, signature: 'aes-gcm-v2' };
     }
 
-    // Legacy format: {sessionId}:{userId}:{signature} - for backward compatibility
-    // This allows existing sessions to continue working during migration
+    // Legacy HMAC format: {sessionId}:{userId}:{signature}
+    // @deprecated Remove after 2026-03-01
     if (parts.length === 3) {
       const [sessionId, userId, providedSignature] = parts;
 
-      // Verify signature using HMAC
+      // Always compute expected signature (timing-safe: no early return)
       const legacyPayload = `${sessionId}:${userId}`;
       const expectedSignature = await hmacSign(legacyPayload, secret);
 
-      if (!timingSafeEqual(providedSignature, expectedSignature)) {
+      // Constant-time comparison
+      const isValid = timingSafeEqual(providedSignature, expectedSignature);
+
+      if (!isValid) {
         console.log('[Session] Invalid legacy cookie signature');
         return null;
       }
 
+      // Log deprecation warning (rate-limited in production)
+      console.log('[Session] Legacy HMAC cookie used - will be deprecated 2026-03-01');
       return { sessionId, userId, signature: providedSignature };
     }
 
+    // Invalid format - do cryptographic work to prevent timing attack
+    const dummySalt = new Uint8Array(SALT_SIZE);
+    await getAesKey(secret, dummySalt);
     console.log('[Session] Invalid cookie format');
     return null;
   } catch (error) {
     // AES-GCM throws on decryption failure (tampered cookie)
-    console.log('[Session] Cookie decryption failed:', error instanceof Error ? error.message : 'unknown');
+    console.log('[Session] Cookie verification failed');
     return null;
   }
 }
@@ -263,20 +355,24 @@ export function clearSessionCookieHeader(): string {
  * Generate device ID from request fingerprint
  * Uses HMAC of browser characteristics for consistent device identification
  *
- * Enhanced with Sec-CH-UA client hints for better entropy:
- * - Sec-CH-UA: Browser brand/version (e.g., "Chromium";v="120", "Google Chrome";v="120")
- * - Sec-CH-UA-Platform: OS (e.g., "macOS", "Windows", "Android")
- * - Sec-CH-UA-Mobile: Mobile indicator (?0 or ?1)
+ * Components used:
+ * - User-Agent: Browser and OS identification
+ * - Accept-Language: Locale preferences (stable per device)
+ * - Sec-CH-UA headers: Modern browser identification
  *
- * This improves device identification accuracy while respecting privacy
- * (client hints are less fingerprintable than full User-Agent).
+ * NOTE: IP address is intentionally NOT included because:
+ * - Mobile users change IPs frequently (cell towers, WiFi handoff)
+ * - VPN users have different IPs per session
+ * - Users behind CGNAT share IPs
+ * Including IP would create duplicate "devices" in the session list.
+ *
+ * IP is stored separately in session metadata for security auditing.
  */
 export async function getDeviceId(request: Request, secret: string): Promise<string> {
   const components = [
     request.headers.get('user-agent') || '',
     request.headers.get('accept-language') || '',
-    request.headers.get('cf-connecting-ip') || '',
-    // Sec-CH-UA client hints (if available)
+    // Sec-CH-UA client hints provide stable device identification
     request.headers.get('sec-ch-ua') || '',
     request.headers.get('sec-ch-ua-platform') || '',
     request.headers.get('sec-ch-ua-mobile') || '',

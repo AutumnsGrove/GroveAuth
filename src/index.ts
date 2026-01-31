@@ -256,7 +256,6 @@ export default {
     // Note: Cron only warms ONE region; users in other regions may still see cold starts
 
     // Daily maintenance: cleanup old audit logs (run once per day at midnight UTC)
-    // The cron name 'daily-maintenance' triggers this block
     if (controller.cron === '0 0 * * *') {
       try {
         const { cleanupOldAuditLogs } = await import('./db/queries.js');
@@ -264,9 +263,16 @@ export default {
         if (deleted > 0) {
           console.log(`[Maintenance] Cleaned up ${deleted} old audit log entries`);
         }
+        // Alert if deletion count is unexpectedly high (potential attack indicator)
+        if (deleted > 10000) {
+          console.warn(`[Maintenance] High audit log deletion count: ${deleted} entries`);
+        }
       } catch (error) {
         console.error('[Maintenance] Failed to cleanup audit logs:', error);
       }
+    } else if (controller.cron !== '* * * * *') {
+      // Log unknown cron patterns for debugging (keepalive is handled above)
+      console.warn('[Cron] Unknown cron pattern executed:', controller.cron);
     }
   },
 };

@@ -22,18 +22,19 @@ const TEST_SECRET = 'test-secret-key-for-unit-tests-32bytes!';
 
 describe('Session Cookie Encryption', () => {
   describe('createSessionCookie', () => {
-    it('should create an encrypted cookie in the new format', async () => {
+    it('should create an encrypted cookie in v2 format', async () => {
       const sessionId = 'sess_abc123';
       const userId = 'user_xyz789';
 
       const cookie = await createSessionCookie(sessionId, userId, TEST_SECRET);
 
-      // New format: {iv}:{ciphertext} - should have exactly 2 parts
+      // v2 format: {salt+iv}:{ciphertext} - should have exactly 2 parts
       const parts = cookie.split(':');
       expect(parts).toHaveLength(2);
 
-      // IV should be base64url encoded (12 bytes = 16 chars base64)
+      // salt+iv should be base64url encoded (16+12=28 bytes ≈ 38 chars base64)
       expect(parts[0]).toMatch(/^[A-Za-z0-9_-]+$/);
+      expect(parts[0].length).toBeGreaterThan(30); // 28 bytes = ~38 chars
 
       // Ciphertext should be base64url encoded
       expect(parts[1]).toMatch(/^[A-Za-z0-9_-]+$/);
@@ -83,7 +84,7 @@ describe('Session Cookie Encryption', () => {
       expect(parsed).not.toBeNull();
       expect(parsed!.sessionId).toBe(sessionId);
       expect(parsed!.userId).toBe(userId);
-      expect(parsed!.signature).toBe('aes-gcm'); // New format indicator
+      expect(parsed!.signature).toBe('aes-gcm-v2'); // v2 format with per-cookie salt
     });
 
     it('should return null for invalid cookie format', async () => {
@@ -203,7 +204,6 @@ describe('Device Fingerprinting', () => {
         headers: {
           'user-agent': 'Mozilla/5.0 Chrome/120',
           'accept-language': 'en-US',
-          'cf-connecting-ip': '192.168.1.1',
         },
       });
 
@@ -219,7 +219,6 @@ describe('Device Fingerprinting', () => {
         headers: {
           'user-agent': 'Mozilla/5.0 Chrome/120',
           'accept-language': 'en-US',
-          'cf-connecting-ip': '192.168.1.1',
         },
       });
 
@@ -227,7 +226,6 @@ describe('Device Fingerprinting', () => {
         headers: {
           'user-agent': 'Mozilla/5.0 Firefox/120',
           'accept-language': 'en-US',
-          'cf-connecting-ip': '192.168.1.1',
         },
       });
 
@@ -237,12 +235,36 @@ describe('Device Fingerprinting', () => {
       expect(deviceId1).not.toBe(deviceId2);
     });
 
+    it('should NOT include IP in fingerprint (stable for VPN/mobile users)', async () => {
+      // Same device, different IPs should produce SAME device ID
+      const request1 = new Request('https://example.com', {
+        headers: {
+          'user-agent': 'Mozilla/5.0 Chrome/120',
+          'accept-language': 'en-US',
+          'cf-connecting-ip': '192.168.1.1',
+        },
+      });
+
+      const request2 = new Request('https://example.com', {
+        headers: {
+          'user-agent': 'Mozilla/5.0 Chrome/120',
+          'accept-language': 'en-US',
+          'cf-connecting-ip': '10.0.0.50', // Different IP
+        },
+      });
+
+      const deviceId1 = await getDeviceId(request1, TEST_SECRET);
+      const deviceId2 = await getDeviceId(request2, TEST_SECRET);
+
+      // Same device ID even with different IPs
+      expect(deviceId1).toBe(deviceId2);
+    });
+
     it('should include Sec-CH-UA headers in fingerprint', async () => {
       const requestWithClientHints = new Request('https://example.com', {
         headers: {
           'user-agent': 'Mozilla/5.0 Chrome/120',
           'accept-language': 'en-US',
-          'cf-connecting-ip': '192.168.1.1',
           'sec-ch-ua': '"Chromium";v="120", "Google Chrome";v="120"',
           'sec-ch-ua-platform': '"macOS"',
           'sec-ch-ua-mobile': '?0',
@@ -253,7 +275,6 @@ describe('Device Fingerprinting', () => {
         headers: {
           'user-agent': 'Mozilla/5.0 Chrome/120',
           'accept-language': 'en-US',
-          'cf-connecting-ip': '192.168.1.1',
         },
       });
 

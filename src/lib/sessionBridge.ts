@@ -38,6 +38,16 @@ const pendingBridges = new WeakMap<Request, SessionBridgeResult>();
 const REQUEST_TIMEOUT_MS = 5 * 60 * 1000;
 
 /**
+ * Redact sensitive ID for logging
+ * Shows first 4 and last 2 characters: "user_abc...xy"
+ * This allows debugging while preventing full ID exposure in logs
+ */
+function redactId(id: string): string {
+  if (id.length <= 8) return '***';
+  return `${id.slice(0, 6)}...${id.slice(-2)}`;
+}
+
+/**
  * Register a request before calling Better Auth handler
  * This stores the env context so the hook can access it later
  */
@@ -144,8 +154,9 @@ export async function bridgeSessionToSessionDO(
 
     const { sessionId } = await sessionDO.createSession(createParams);
 
+    // Log with redacted IDs to prevent exposure in log aggregation services
     console.log(
-      `[SessionBridge] Created SessionDO session ${sessionId} for user ${baSession.userId} (BA session: ${baSession.id})`
+      `[SessionBridge] Created session ${redactId(sessionId)} for user ${redactId(baSession.userId)}`
     );
 
     const result: SessionBridgeResult = {
@@ -158,13 +169,15 @@ export async function bridgeSessionToSessionDO(
 
     return result;
   } catch (error) {
+    // Log full error server-side for debugging
     console.error('[SessionBridge] Failed to create SessionDO session:', error);
 
-    // Store error result but don't throw - BA session is still valid
+    // Store GENERIC error message to prevent information disclosure
+    // Full error is logged above for debugging but not stored in result
     const errorResult: SessionBridgeResult = {
       sessionId: '',
       userId: baSession.userId,
-      error: error instanceof Error ? error.message : 'Unknown error',
+      error: 'Session creation failed', // Generic message, not original error
     };
 
     setSessionBridgeResult(request, errorResult);

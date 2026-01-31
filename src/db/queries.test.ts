@@ -462,7 +462,7 @@ describe('cleanupOldAuditLogs', () => {
     expect(deleted).toBe(0);
   });
 
-  it('should handle very short retention periods', async () => {
+  it('should handle 31-day retention (just above minimum)', async () => {
     const mockDb = createMockDbWithChanges(100);
     const prepareCall = vi.fn().mockReturnValue({
       bind: vi.fn().mockReturnValue({
@@ -471,37 +471,59 @@ describe('cleanupOldAuditLogs', () => {
     });
     mockDb.prepare = prepareCall;
 
-    // 1 day retention - aggressive cleanup
-    const deleted = await cleanupOldAuditLogs(mockDb as any, 1);
+    // 31 days - just above minimum
+    const deleted = await cleanupOldAuditLogs(mockDb as any, 31);
 
     expect(deleted).toBe(100);
 
     const bindCall = prepareCall.mock.results[0].value.bind;
     const cutoffArg = bindCall.mock.calls[0][0];
     const cutoffDate = new Date(cutoffArg);
-    const oneDayAgo = new Date();
-    oneDayAgo.setDate(oneDayAgo.getDate() - 1);
+    const thirtyOneDaysAgo = new Date();
+    thirtyOneDaysAgo.setDate(thirtyOneDaysAgo.getDate() - 31);
 
-    expect(Math.abs(cutoffDate.getTime() - oneDayAgo.getTime())).toBeLessThan(1000);
+    expect(Math.abs(cutoffDate.getTime() - thirtyOneDaysAgo.getTime())).toBeLessThan(1000);
   });
 
-  it('should handle zero retention period', async () => {
-    const mockDb = createMockDbWithChanges(1000);
+  it('should throw error for retention below minimum (30 days)', async () => {
+    const mockDb = createMockDbWithChanges(0);
+
+    // 29 days is below minimum
+    await expect(cleanupOldAuditLogs(mockDb as any, 29)).rejects.toThrow(
+      'Audit log retention must be at least 30 days'
+    );
+
+    // 0 days should also throw
+    await expect(cleanupOldAuditLogs(mockDb as any, 0)).rejects.toThrow(
+      'Audit log retention must be at least 30 days'
+    );
+
+    // 15 days should throw
+    await expect(cleanupOldAuditLogs(mockDb as any, 15)).rejects.toThrow(
+      'Audit log retention must be at least 30 days'
+    );
+  });
+
+  it('should accept exactly 30 days retention (minimum)', async () => {
+    const mockDb = createMockDbWithChanges(50);
     const prepareCall = vi.fn().mockReturnValue({
       bind: vi.fn().mockReturnValue({
-        run: vi.fn().mockResolvedValue({ meta: { changes: 1000 } }),
+        run: vi.fn().mockResolvedValue({ meta: { changes: 50 } }),
       }),
     });
     mockDb.prepare = prepareCall;
 
-    // 0 days retention - delete everything older than now
-    await cleanupOldAuditLogs(mockDb as any, 0);
+    // Exactly 30 days should work
+    const deleted = await cleanupOldAuditLogs(mockDb as any, 30);
+
+    expect(deleted).toBe(50);
 
     const bindCall = prepareCall.mock.results[0].value.bind;
     const cutoffArg = bindCall.mock.calls[0][0];
     const cutoffDate = new Date(cutoffArg);
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-    // Should be very close to now (within 1 second)
-    expect(Math.abs(cutoffDate.getTime() - Date.now())).toBeLessThan(1000);
+    expect(Math.abs(cutoffDate.getTime() - thirtyDaysAgo.getTime())).toBeLessThan(1000);
   });
 });

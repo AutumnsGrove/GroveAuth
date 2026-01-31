@@ -575,6 +575,9 @@ export async function createAuditLog(
     .run();
 }
 
+// Minimum audit log retention to prevent accidental deletion
+const MIN_AUDIT_RETENTION_DAYS = 30;
+
 /**
  * Clean up old audit logs beyond the retention period.
  * Default retention: 90 days (configurable).
@@ -583,13 +586,21 @@ export async function createAuditLog(
  * Should be called periodically (e.g., via scheduled worker).
  *
  * @param db - Database connection
- * @param retentionDays - Number of days to retain logs (default: 90)
+ * @param retentionDays - Number of days to retain logs (default: 90, minimum: 30)
  * @returns Number of deleted rows
+ * @throws Error if retentionDays is below minimum (prevents accidental deletion)
  */
 export async function cleanupOldAuditLogs(
   db: D1DatabaseOrSession,
   retentionDays: number = 90
 ): Promise<number> {
+  // Validate minimum retention to prevent accidental mass deletion
+  if (retentionDays < MIN_AUDIT_RETENTION_DAYS) {
+    throw new Error(
+      `Audit log retention must be at least ${MIN_AUDIT_RETENTION_DAYS} days (got ${retentionDays})`
+    );
+  }
+
   const cutoffDate = new Date();
   cutoffDate.setDate(cutoffDate.getDate() - retentionDays);
   const cutoffIso = cutoffDate.toISOString();

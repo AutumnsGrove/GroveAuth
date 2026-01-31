@@ -575,6 +575,33 @@ export async function createAuditLog(
     .run();
 }
 
+/**
+ * Clean up old audit logs beyond the retention period.
+ * Default retention: 90 days (configurable).
+ *
+ * This prevents unbounded growth of the audit_log table.
+ * Should be called periodically (e.g., via scheduled worker).
+ *
+ * @param db - Database connection
+ * @param retentionDays - Number of days to retain logs (default: 90)
+ * @returns Number of deleted rows
+ */
+export async function cleanupOldAuditLogs(
+  db: D1DatabaseOrSession,
+  retentionDays: number = 90
+): Promise<number> {
+  const cutoffDate = new Date();
+  cutoffDate.setDate(cutoffDate.getDate() - retentionDays);
+  const cutoffIso = cutoffDate.toISOString();
+
+  const result = await db
+    .prepare('DELETE FROM audit_log WHERE created_at < ?')
+    .bind(cutoffIso)
+    .run();
+
+  return result.meta?.changes ?? 0;
+}
+
 // ==================== OAuth State ====================
 
 export async function saveOAuthState(

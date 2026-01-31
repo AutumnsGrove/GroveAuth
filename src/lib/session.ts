@@ -1,12 +1,19 @@
 /**
  * Session Utilities for SessionDO
- * Uses Web Crypto API for HMAC-SHA256 signing
+ * Uses Web Crypto API for AES-GCM encryption + HMAC-SHA256 signing
+ *
+ * Cookie format: {iv}:{encryptedPayload}:{authTag}
+ * - iv: 12-byte random initialization vector (base64url)
+ * - encryptedPayload: AES-GCM encrypted {sessionId}:{userId} (base64url)
+ * - authTag: included in AES-GCM output (authenticates the ciphertext)
+ *
+ * This prevents userId enumeration by encrypting the entire payload.
  */
 
 export interface ParsedSessionCookie {
   sessionId: string;
   userId: string;
-  signature: string;
+  signature: string; // Kept for backward compatibility, now represents the auth tag
 }
 
 /**
@@ -21,7 +28,52 @@ function base64UrlEncode(data: Uint8Array): string {
 }
 
 /**
+ * Base64 URL decode
+ */
+function base64UrlDecode(str: string): Uint8Array {
+  // Restore standard base64 characters
+  const base64 = str.replace(/-/g, '+').replace(/_/g, '/');
+  // Add padding if needed
+  const padded = base64 + '='.repeat((4 - (base64.length % 4)) % 4);
+  const binary = atob(padded);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return bytes;
+}
+
+/**
+ * Derive AES-GCM key from secret using HKDF
+ * This creates a proper 256-bit key from any length secret
+ */
+async function getAesKey(secret: string): Promise<CryptoKey> {
+  const encoder = new TextEncoder();
+  const keyMaterial = await crypto.subtle.importKey(
+    'raw',
+    encoder.encode(secret),
+    'HKDF',
+    false,
+    ['deriveKey']
+  );
+
+  return crypto.subtle.deriveKey(
+    {
+      name: 'HKDF',
+      hash: 'SHA-256',
+      salt: encoder.encode('grove-session-v1'), // Fixed salt for deterministic key
+      info: encoder.encode('session-cookie'),
+    },
+    keyMaterial,
+    { name: 'AES-GCM', length: 256 },
+    false,
+    ['encrypt', 'decrypt']
+  );
+}
+
+/**
  * Import secret as HMAC key for crypto.subtle
+ * Used for device fingerprinting
  */
 async function getHmacKey(secret: string): Promise<CryptoKey> {
   const encoder = new TextEncoder();
@@ -38,6 +90,7 @@ async function getHmacKey(secret: string): Promise<CryptoKey> {
 
 /**
  * Sign data with HMAC-SHA256 using Web Crypto API
+ * Used for device fingerprinting
  */
 async function hmacSign(data: string, secret: string): Promise<string> {
   const key = await getHmacKey(secret);
@@ -63,43 +116,102 @@ function timingSafeEqual(a: string, b: string): boolean {
 }
 
 /**
- * Create a signed session cookie value
- * Format: {sessionId}:{userId}:{signature}
+ * Create an encrypted session cookie value
+ * Format: {iv}:{encryptedPayload} (AES-GCM includes auth tag in ciphertext)
+ *
+ * The payload {sessionId}:{userId} is encrypted with AES-256-GCM, preventing
+ * userId enumeration attacks. The IV ensures each cookie is unique even for
+ * the same user/session.
  */
 export async function createSessionCookie(
   sessionId: string,
   userId: string,
   secret: string
 ): Promise<string> {
+  const key = await getAesKey(secret);
+  const encoder = new TextEncoder();
+
+  // Generate random 12-byte IV (recommended for AES-GCM)
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+
+  // Encrypt the payload
   const payload = `${sessionId}:${userId}`;
-  const signature = await hmacSign(payload, secret);
-  return `${payload}:${signature}`;
+  const ciphertext = await crypto.subtle.encrypt(
+    { name: 'AES-GCM', iv },
+    key,
+    encoder.encode(payload)
+  );
+
+  // Format: {iv}:{encryptedPayload} (auth tag is part of ciphertext in Web Crypto)
+  return `${base64UrlEncode(iv)}:${base64UrlEncode(new Uint8Array(ciphertext))}`;
 }
 
 /**
- * Parse and verify a session cookie
- * Returns null if invalid or signature doesn't match
+ * Parse and decrypt a session cookie
+ * Returns null if invalid, tampered, or decryption fails
+ *
+ * AES-GCM provides authenticated encryption - if the cookie is tampered with,
+ * decryption will fail with an error (not silently produce garbage).
  */
 export async function parseSessionCookie(
   cookie: string,
   secret: string
 ): Promise<ParsedSessionCookie | null> {
-  const parts = cookie.split(':');
-  if (parts.length !== 3) return null;
+  try {
+    const parts = cookie.split(':');
 
-  const [sessionId, userId, providedSignature] = parts;
+    // New format: {iv}:{encryptedPayload}
+    if (parts.length === 2) {
+      const [ivStr, ciphertextStr] = parts;
 
-  // Verify signature
-  const payload = `${sessionId}:${userId}`;
-  const expectedSignature = await hmacSign(payload, secret);
+      const key = await getAesKey(secret);
+      const iv = base64UrlDecode(ivStr);
+      const ciphertext = base64UrlDecode(ciphertextStr);
 
-  // Timing-safe comparison
-  if (!timingSafeEqual(providedSignature, expectedSignature)) {
-    console.log('[Session] Invalid cookie signature');
+      // Decrypt (will throw if tampered - AES-GCM is authenticated)
+      const plaintext = await crypto.subtle.decrypt(
+        { name: 'AES-GCM', iv },
+        key,
+        ciphertext
+      );
+
+      const decoder = new TextDecoder();
+      const payload = decoder.decode(plaintext);
+      const payloadParts = payload.split(':');
+
+      if (payloadParts.length !== 2) {
+        console.log('[Session] Invalid decrypted payload format');
+        return null;
+      }
+
+      const [sessionId, userId] = payloadParts;
+      return { sessionId, userId, signature: 'aes-gcm' };
+    }
+
+    // Legacy format: {sessionId}:{userId}:{signature} - for backward compatibility
+    // This allows existing sessions to continue working during migration
+    if (parts.length === 3) {
+      const [sessionId, userId, providedSignature] = parts;
+
+      // Verify signature using HMAC
+      const legacyPayload = `${sessionId}:${userId}`;
+      const expectedSignature = await hmacSign(legacyPayload, secret);
+
+      if (!timingSafeEqual(providedSignature, expectedSignature)) {
+        console.log('[Session] Invalid legacy cookie signature');
+        return null;
+      }
+
+      return { sessionId, userId, signature: providedSignature };
+    }
+
+    console.log('[Session] Invalid cookie format');
+    return null;
+  } catch (error) {
+    // AES-GCM throws on decryption failure (tampered cookie)
+    console.log('[Session] Cookie decryption failed:', error instanceof Error ? error.message : 'unknown');
     return null;
   }
-
-  return { sessionId, userId, signature: providedSignature };
 }
 
 /**
@@ -150,12 +262,24 @@ export function clearSessionCookieHeader(): string {
 /**
  * Generate device ID from request fingerprint
  * Uses HMAC of browser characteristics for consistent device identification
+ *
+ * Enhanced with Sec-CH-UA client hints for better entropy:
+ * - Sec-CH-UA: Browser brand/version (e.g., "Chromium";v="120", "Google Chrome";v="120")
+ * - Sec-CH-UA-Platform: OS (e.g., "macOS", "Windows", "Android")
+ * - Sec-CH-UA-Mobile: Mobile indicator (?0 or ?1)
+ *
+ * This improves device identification accuracy while respecting privacy
+ * (client hints are less fingerprintable than full User-Agent).
  */
 export async function getDeviceId(request: Request, secret: string): Promise<string> {
   const components = [
     request.headers.get('user-agent') || '',
     request.headers.get('accept-language') || '',
     request.headers.get('cf-connecting-ip') || '',
+    // Sec-CH-UA client hints (if available)
+    request.headers.get('sec-ch-ua') || '',
+    request.headers.get('sec-ch-ua-platform') || '',
+    request.headers.get('sec-ch-ua-mobile') || '',
   ];
 
   const hash = await hmacSign(components.join('|'), secret);

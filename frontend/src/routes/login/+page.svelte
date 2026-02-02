@@ -49,6 +49,19 @@
 
   // Check device capability and enable Conditional UI on mount
   onMount(async () => {
+    // Check if already logged in - if so, redirect to destination
+    try {
+      const session = await auth.getSession();
+      if (session.data?.session) {
+        console.log('[Login] Already authenticated, redirecting to:', callbackURL);
+        window.location.href = callbackURL;
+        return;
+      }
+    } catch (e) {
+      // Not logged in, continue with login UI
+      console.log('[Login] No existing session');
+    }
+
     // Check if device supports passkeys
     if (typeof window !== 'undefined' && window.PublicKeyCredential) {
       try {
@@ -109,11 +122,14 @@
   }
 
   // Handle Google sign in
-  async function handleGoogleSignIn(event: Event) {
+  async function handleGoogleSignIn(event: MouseEvent) {
     event.preventDefault();
+    event.stopPropagation();
+    
+    console.log('[Login] Google button clicked');
     
     if (isLegacyFlow) {
-      // Use legacy OAuth flow for existing clients
+      console.log('[Login] Using legacy OAuth flow');
       window.location.href = buildLegacyOAuthUrl('google');
       return;
     }
@@ -123,15 +139,16 @@
     errorMessage = '';
     
     try {
-      console.log('[Login] Starting Google sign-in with callbackURL:', callbackURL);
+      console.log('[Login] Calling signInWithGoogle with callbackURL:', callbackURL);
       const result = await signInWithGoogle({ callbackURL, errorCallbackURL });
-      console.log('[Login] Google sign-in result:', result);
+      console.log('[Login] signInWithGoogle returned:', result);
       
       // If result has an error, display it
-      if (result && 'error' in result && result.error) {
+      if (result && typeof result === 'object' && 'error' in result && result.error) {
         throw new Error(result.error.message || 'Unknown error');
       }
-      // On success, Better Auth handles the redirect
+      // On success, Better Auth handles the redirect - we should not reach here
+      console.log('[Login] signInWithGoogle completed without redirect');
     } catch (error) {
       console.error('[Login] Google sign in error:', error);
       errorMessage = error instanceof Error ? error.message : 'Failed to sign in with Google. Please try again.';

@@ -39,11 +39,19 @@ export async function signInWithGoogle(options?: {
   callbackURL?: string;
   errorCallbackURL?: string;
 }) {
-  return auth.signIn.social({
-    provider: 'google',
-    callbackURL: options?.callbackURL || '/',
-    errorCallbackURL: options?.errorCallbackURL || '/login?error=oauth_failed',
-  });
+  console.log('[AuthClient] signInWithGoogle called with:', options);
+  try {
+    const result = await auth.signIn.social({
+      provider: 'google',
+      callbackURL: options?.callbackURL || '/',
+      errorCallbackURL: options?.errorCallbackURL || '/login?error=oauth_failed',
+    });
+    console.log('[AuthClient] signIn.social result:', result);
+    return result;
+  } catch (error) {
+    console.error('[AuthClient] signIn.social error:', error);
+    throw error;
+  }
 }
 
 /**

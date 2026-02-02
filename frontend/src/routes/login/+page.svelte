@@ -109,7 +109,9 @@
   }
 
   // Handle Google sign in
-  async function handleGoogleSignIn() {
+  async function handleGoogleSignIn(event: Event) {
+    event.preventDefault();
+    
     if (isLegacyFlow) {
       // Use legacy OAuth flow for existing clients
       window.location.href = buildLegacyOAuthUrl('google');
@@ -119,11 +121,20 @@
     isLoading = true;
     loadingProvider = 'google';
     errorMessage = '';
+    
     try {
-      await signInWithGoogle({ callbackURL, errorCallbackURL });
+      console.log('[Login] Starting Google sign-in with callbackURL:', callbackURL);
+      const result = await signInWithGoogle({ callbackURL, errorCallbackURL });
+      console.log('[Login] Google sign-in result:', result);
+      
+      // If result has an error, display it
+      if (result && 'error' in result && result.error) {
+        throw new Error(result.error.message || 'Unknown error');
+      }
+      // On success, Better Auth handles the redirect
     } catch (error) {
-      errorMessage = 'Failed to sign in with Google. Please try again.';
-      console.error('Google sign in error:', error);
+      console.error('[Login] Google sign in error:', error);
+      errorMessage = error instanceof Error ? error.message : 'Failed to sign in with Google. Please try again.';
       isLoading = false;
       loadingProvider = null;
     }

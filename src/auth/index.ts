@@ -110,6 +110,7 @@ export function createAuth(env: Env, cf?: CloudflareGeolocation) {
     trustedOrigins: [
       'https://autumnsgrove.com',
       'https://heartwood.grove.place',
+      'https://plant.grove.place',
       'https://amber.grove.place',
       'https://groveengine.grove.place',
       'https://autumn.grove.place',  // Property site

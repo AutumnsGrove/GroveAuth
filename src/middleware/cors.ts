@@ -36,6 +36,7 @@ export const corsMiddleware: MiddlewareHandler<{ Bindings: Env }> = async (c, ne
 const ALLOWED_ORIGINS = [
   'https://heartwood.grove.place',
   'https://groveengine.grove.place',
+  'https://plant.grove.place',
   'https://autumnsgrove.com',
   'https://amber.grove.place',
   'https://autumn.grove.place',  // Property site

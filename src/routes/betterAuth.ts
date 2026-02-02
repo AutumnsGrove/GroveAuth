@@ -91,6 +91,8 @@ betterAuthRoutes.all('/*', async (c) => {
     } : undefined;
 
     console.log('[BetterAuth] Request:', c.req.method, c.req.path);
+    console.log('[BetterAuth] Full URL:', c.req.url);
+    console.log('[BetterAuth] Query params:', Object.fromEntries(new URL(c.req.url).searchParams));
 
     // Register this request for SessionDO bridging
     // The session hook will use this to create a SessionDO session

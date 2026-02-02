@@ -21,18 +21,12 @@ export const load: PageServerLoad = async ({ url }) => {
   const error = url.searchParams.get('error');
   const error_description = url.searchParams.get('error_description');
 
-  // If missing required params, show an error
-  if (!client_id || !redirect_uri || !state) {
-    return {
-      params: null,
-      error: 'invalid_request',
-      errorDescription: 'Missing required parameters (client_id, redirect_uri, state)'
-    };
-  }
+  // Support both legacy OAuth flow (with params) and direct Better Auth access
+  const hasLegacyParams = client_id && redirect_uri && state;
 
   // Auto-redirect to provider if specified (skip the login UI)
   // This enables LoginGraft's direct-to-provider flow
-  if (provider === 'google') {
+  if (hasLegacyParams && provider === 'google') {
     const oauthParams = new URLSearchParams({
       client_id,
       redirect_uri,
@@ -45,16 +39,16 @@ export const load: PageServerLoad = async ({ url }) => {
     redirect(302, `${AUTH_API_URL}/oauth/google?${oauthParams.toString()}`);
   }
 
-  const params: LoginParams = {
+  // Build params object if we have legacy OAuth params
+  const params: LoginParams | null = hasLegacyParams ? {
     client_id,
     redirect_uri,
-    state
-  };
-
-  if (code_challenge) {
-    params.code_challenge = code_challenge;
-    params.code_challenge_method = code_challenge_method || 'S256';
-  }
+    state,
+    ...(code_challenge && {
+      code_challenge,
+      code_challenge_method: code_challenge_method || 'S256'
+    })
+  } : null;
 
   return {
     params,

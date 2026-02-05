@@ -5,6 +5,7 @@
  */
 
 export const AUTH_API_URL = 'https://auth-api.grove.place';
+export const FRONTEND_URL = 'https://heartwood.grove.place';
 
 export const config = {
   apiUrl: AUTH_API_URL,

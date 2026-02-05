@@ -227,17 +227,12 @@ export function createAuth(env: Env, cf?: CloudflareGeolocation) {
       },
     },
 
-    // OAuth providers
+    // OAuth providers (Passkeys handled via plugin, Google as fallback)
     socialProviders: {
       google: {
         clientId: env.GOOGLE_CLIENT_ID,
         clientSecret: env.GOOGLE_CLIENT_SECRET,
         scope: ['openid', 'email', 'profile'],
-      },
-      discord: {
-        clientId: env.DISCORD_CLIENT_ID,
-        clientSecret: env.DISCORD_CLIENT_SECRET,
-        scope: ['identify', 'email'],
       },
     },
 
@@ -370,7 +365,7 @@ export function createAuth(env: Env, cf?: CloudflareGeolocation) {
       modelName: 'ba_account',  // Map to our ba_account table
       accountLinking: {
         enabled: true,
-        trustedProviders: ['google', 'discord'],
+        trustedProviders: ['google'],
       },
     },
 

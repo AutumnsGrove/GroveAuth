@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { AUTH_API_URL } from '$lib/config';
+  import { AUTH_API_URL, FRONTEND_URL } from '$lib/config';
   import {
     signInWithGoogle,
     signInWithPasskey,
@@ -22,7 +22,8 @@
   let supportsPasskeys = $state(false);
 
   // Determine callback URL from params or default
-  let callbackURL = $derived(data.params?.redirect_uri || '/dashboard');
+  // Use absolute URL to ensure redirect goes to frontend, not API domain
+  let callbackURL = $derived(data.params?.redirect_uri || `${FRONTEND_URL}/dashboard`);
   let errorCallbackURL = $derived(
     data.params
       ? `/login?error=auth_failed&client_id=${encodeURIComponent(data.params.client_id || '')}&redirect_uri=${encodeURIComponent(data.params.redirect_uri || '')}&state=${encodeURIComponent(data.params.state || '')}`

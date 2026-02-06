@@ -107,13 +107,10 @@ export function createAuth(env: Env, cf?: CloudflareGeolocation) {
     secret: env.SESSION_SECRET,
 
     // Trusted origins for callback URLs and redirects
+    // Wildcard covers all tenant subdomains (Better Auth uses internal wildcardMatch())
     trustedOrigins: [
       'https://autumnsgrove.com',
-      'https://heartwood.grove.place',
-      'https://plant.grove.place',
-      'https://amber.grove.place',
-      'https://groveengine.grove.place',
-      'https://autumn.grove.place',  // Property site
+      'https://*.grove.place',
     ],
 
     // Database configuration via better-auth-cloudflare

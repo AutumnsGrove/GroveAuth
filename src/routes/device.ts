@@ -291,8 +291,11 @@ device.post('/device/authorize', async (c) => {
     // Origin header missing — check Referer as fallback
     const referer = c.req.header('Referer');
     if (referer) {
+      // Extract origin from Referer URL for exact comparison.
+      // startsWith would allow "https://auth.grove.place.evil.com" to bypass.
       const authOrigin = new URL(c.env.AUTH_BASE_URL).origin;
-      if (!referer.startsWith(authOrigin)) {
+      const refererOrigin = new URL(referer).origin;
+      if (refererOrigin !== authOrigin) {
         return c.json(
           { error: 'invalid_request', error_description: 'Invalid origin' },
           403

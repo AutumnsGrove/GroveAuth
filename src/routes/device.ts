@@ -288,7 +288,7 @@ device.post('/device/authorize', async (c) => {
       );
     }
   } else {
-    // Origin header missing — only allow if Referer matches (or neither is present for same-origin)
+    // Origin header missing — check Referer as fallback
     const referer = c.req.header('Referer');
     if (referer) {
       const authOrigin = new URL(c.env.AUTH_BASE_URL).origin;
@@ -298,9 +298,15 @@ device.post('/device/authorize', async (c) => {
           403
         );
       }
+    } else {
+      // SECURITY: Both Origin and Referer missing — deny by default.
+      // Modern browsers always send Origin on POST requests (same-origin and cross-origin).
+      // Missing both headers suggests header stripping (privacy extensions, proxies, or attack).
+      return c.json(
+        { error: 'invalid_request', error_description: 'Origin validation required' },
+        403
+      );
     }
-    // If neither Origin nor Referer is present, this is likely a same-origin request
-    // (browsers always send Origin on cross-origin POST). Allow it.
   }
 
   // Try Better Auth session first (new system)

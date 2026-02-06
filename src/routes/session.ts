@@ -636,9 +636,11 @@ session.post("/validate-service", async (c) => {
   // In production, this endpoint should only be called via Cloudflare Service Bindings
   // (which bypass the public internet). The SERVICE_SECRET check provides defense-in-depth
   // for cases where the endpoint is accessible on the public HTTP routes.
+  // Always extract the header to avoid timing differences that could reveal
+  // whether SERVICE_SECRET is configured.
+  const serviceAuthHeader = c.req.header("Authorization");
   if (c.env.SERVICE_SECRET) {
-    const authHeader = c.req.header("Authorization");
-    if (!authHeader || authHeader !== `Bearer ${c.env.SERVICE_SECRET}`) {
+    if (!serviceAuthHeader || serviceAuthHeader !== `Bearer ${c.env.SERVICE_SECRET}`) {
       return c.json({ valid: false, error: "Unauthorized" }, 401);
     }
   }

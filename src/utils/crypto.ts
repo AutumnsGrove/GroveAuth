@@ -115,10 +115,16 @@ export async function verifySecret(secret: string, hash: string): Promise<boolea
  * not the shorter one (which would reveal partial length info).
  */
 export function timingSafeEqual(a: string, b: string): boolean {
-  const maxLength = Math.max(a.length, b.length);
-  let result = a.length ^ b.length; // Accumulate length difference
+  const aLen = a.length;
+  const bLen = b.length;
+  const maxLength = Math.max(aLen, bLen);
+  let result = aLen ^ bLen; // Accumulate length difference
   for (let i = 0; i < maxLength; i++) {
-    result |= (a.charCodeAt(i) || 0) ^ (b.charCodeAt(i) || 0);
+    // Explicit bounds check avoids NaN-to-0 coercion via || operator,
+    // which could introduce subtle branch timing differences
+    const aCode = i < aLen ? a.charCodeAt(i) : 0;
+    const bCode = i < bLen ? b.charCodeAt(i) : 0;
+    result |= aCode ^ bCode;
   }
   return result === 0;
 }

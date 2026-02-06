@@ -106,16 +106,25 @@ export async function verifySecret(secret: string, hash: string): Promise<boolea
 }
 
 /**
- * Timing-safe string comparison to prevent timing attacks
+ * Timing-safe string comparison to prevent timing attacks.
+ *
+ * SECURITY: Avoids early returns that could leak length information.
+ * Uses Math.max to iterate the full length of the longer string,
+ * and accumulates the length difference into the result variable.
+ * This ensures comparison time is proportional to the longer input,
+ * not the shorter one (which would reveal partial length info).
  */
 export function timingSafeEqual(a: string, b: string): boolean {
-  if (a.length !== b.length) {
-    return false;
-  }
-
-  let result = 0;
-  for (let i = 0; i < a.length; i++) {
-    result |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  const aLen = a.length;
+  const bLen = b.length;
+  const maxLength = Math.max(aLen, bLen);
+  let result = aLen ^ bLen; // Accumulate length difference
+  for (let i = 0; i < maxLength; i++) {
+    // Explicit bounds check avoids NaN-to-0 coercion via || operator,
+    // which could introduce subtle branch timing differences
+    const aCode = i < aLen ? a.charCodeAt(i) : 0;
+    const bCode = i < bLen ? b.charCodeAt(i) : 0;
+    result |= aCode ^ bCode;
   }
   return result === 0;
 }

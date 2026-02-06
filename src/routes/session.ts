@@ -19,7 +19,7 @@ import {
   getUserClientPreference,
   isEmailAdmin,
 } from "../db/queries.js";
-import { hashSecret } from "../utils/crypto.js";
+import { hashSecret, timingSafeEqual } from "../utils/crypto.js";
 import { verifyAccessToken } from "../services/jwt.js";
 import { createDbSession } from "../db/session.js";
 import {
@@ -631,6 +631,19 @@ session.get("/check", async (c) => {
  */
 session.post("/validate-service", async (c) => {
   const db = createDbSession(c.env);
+
+  // SECURITY: Verify service-to-service authentication
+  // In production, this endpoint should only be called via Cloudflare Service Bindings
+  // (which bypass the public internet). The SERVICE_SECRET check provides defense-in-depth
+  // for cases where the endpoint is accessible on the public HTTP routes.
+  // Always extract the header to avoid timing differences that could reveal
+  // whether SERVICE_SECRET is configured.
+  const serviceAuthHeader = c.req.header("Authorization");
+  if (c.env.SERVICE_SECRET) {
+    if (!serviceAuthHeader || !timingSafeEqual(serviceAuthHeader, `Bearer ${c.env.SERVICE_SECRET}`)) {
+      return c.json({ valid: false, error: "Unauthorized" }, 401);
+    }
+  }
 
   // Rate limit by IP (higher limit for internal services)
   const rateLimit = await checkRouteRateLimit(

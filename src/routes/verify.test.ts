@@ -212,7 +212,7 @@ describe('GET /userinfo', () => {
       expect(json.error).toBe('invalid_token');
     });
 
-    it('returns 401 if user not found', async () => {
+    it('returns same error as invalid token when user not found (prevents enumeration)', async () => {
       (verifyAccessToken as ReturnType<typeof vi.fn>).mockResolvedValue({
         sub: 'nonexistent-user',
         client_id: 'test-app',
@@ -223,7 +223,8 @@ describe('GET /userinfo', () => {
       expect(res.status).toBe(401);
       const json = await res.json() as ErrorResponse;
       expect(json.error).toBe('invalid_token');
-      expect(json.error_description).toContain('User not found');
+      // SECURITY: Must NOT reveal that the user was deleted/not found
+      expect(json.error_description).toBe('Token is invalid or expired');
     });
   });
 

@@ -275,6 +275,43 @@ device.get('/device', async (c) => {
 device.post('/device/authorize', async (c) => {
   const db = createDbSession(c.env);
 
+  // CSRF protection: Validate Origin header on state-changing request
+  // SameSite=Lax cookies block cross-origin POST in modern browsers,
+  // but Origin validation provides defense-in-depth
+  const origin = c.req.header('Origin');
+  if (origin) {
+    const authOrigin = new URL(c.env.AUTH_BASE_URL).origin;
+    if (origin !== authOrigin) {
+      return c.json(
+        { error: 'invalid_request', error_description: 'Invalid origin' },
+        403
+      );
+    }
+  } else {
+    // Origin header missing — check Referer as fallback
+    const referer = c.req.header('Referer');
+    if (referer) {
+      // Extract origin from Referer URL for exact comparison.
+      // startsWith would allow "https://auth.grove.place.evil.com" to bypass.
+      const authOrigin = new URL(c.env.AUTH_BASE_URL).origin;
+      const refererOrigin = new URL(referer).origin;
+      if (refererOrigin !== authOrigin) {
+        return c.json(
+          { error: 'invalid_request', error_description: 'Invalid origin' },
+          403
+        );
+      }
+    } else {
+      // SECURITY: Both Origin and Referer missing — deny by default.
+      // Modern browsers always send Origin on POST requests (same-origin and cross-origin).
+      // Missing both headers suggests header stripping (privacy extensions, proxies, or attack).
+      return c.json(
+        { error: 'invalid_request', error_description: 'Origin validation required' },
+        403
+      );
+    }
+  }
+
   // Try Better Auth session first (new system)
   let user = null;
   try {

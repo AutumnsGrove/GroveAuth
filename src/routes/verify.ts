@@ -68,7 +68,9 @@ verify.get('/userinfo', async (c) => {
   const user = await getUserById(db, payload.sub);
 
   if (!user) {
-    return c.json({ error: 'invalid_token', error_description: 'User not found' }, 401);
+    // SECURITY: Return same error as invalid token to prevent user enumeration
+    // (attacker with token for deleted user shouldn't learn user was deleted)
+    return c.json({ error: 'invalid_token', error_description: 'Token is invalid or expired' }, 401);
   }
 
   const response: UserInfo = {

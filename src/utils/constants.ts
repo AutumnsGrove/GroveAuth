@@ -26,6 +26,10 @@ export const RATE_LIMIT_SESSION_SERVICE = 100; // per minute for internal servic
 // Admin rate limiting
 export const RATE_LIMIT_ADMIN_PER_IP = 30; // per minute
 
+// Magic link rate limiting (prevents email flooding via Better Auth endpoint)
+export const RATE_LIMIT_MAGIC_LINK = 5; // per 15 minutes per IP
+export const RATE_LIMIT_MAGIC_LINK_WINDOW = 900; // 15 minutes in seconds
+
 // Passkey rate limiting (defense-in-depth alongside Better Auth's internal limits)
 export const RATE_LIMIT_PASSKEY_REGISTER = 5; // per hour per user
 export const RATE_LIMIT_PASSKEY_DELETE = 10; // per hour per user
@@ -56,6 +60,7 @@ export const SECURITY_HEADERS = {
   'X-Content-Type-Options': 'nosniff',
   'X-Frame-Options': 'DENY',
   'Referrer-Policy': 'strict-origin-when-cross-origin',
+  'Permissions-Policy': 'geolocation=(), microphone=(), camera=()',
   'Content-Security-Policy':
     "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' https: data:; font-src 'self'",
 };

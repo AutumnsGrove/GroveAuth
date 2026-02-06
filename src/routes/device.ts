@@ -275,6 +275,34 @@ device.get('/device', async (c) => {
 device.post('/device/authorize', async (c) => {
   const db = createDbSession(c.env);
 
+  // CSRF protection: Validate Origin header on state-changing request
+  // SameSite=Lax cookies block cross-origin POST in modern browsers,
+  // but Origin validation provides defense-in-depth
+  const origin = c.req.header('Origin');
+  if (origin) {
+    const authOrigin = new URL(c.env.AUTH_BASE_URL).origin;
+    if (origin !== authOrigin) {
+      return c.json(
+        { error: 'invalid_request', error_description: 'Invalid origin' },
+        403
+      );
+    }
+  } else {
+    // Origin header missing — only allow if Referer matches (or neither is present for same-origin)
+    const referer = c.req.header('Referer');
+    if (referer) {
+      const authOrigin = new URL(c.env.AUTH_BASE_URL).origin;
+      if (!referer.startsWith(authOrigin)) {
+        return c.json(
+          { error: 'invalid_request', error_description: 'Invalid origin' },
+          403
+        );
+      }
+    }
+    // If neither Origin nor Referer is present, this is likely a same-origin request
+    // (browsers always send Origin on cross-origin POST). Allow it.
+  }
+
   // Try Better Auth session first (new system)
   let user = null;
   try {

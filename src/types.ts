@@ -34,6 +34,9 @@ export interface Env {
   // Passkey configuration (optional - defaults to 'grove.place')
   PASSKEY_RP_ID?: string;
 
+  // Service-to-service authentication (optional — defense-in-depth for validate-service)
+  SERVICE_SECRET?: string;
+
   // Secrets (set via wrangler secret put)
   JWT_PRIVATE_KEY: string;
   JWT_PUBLIC_KEY: string;

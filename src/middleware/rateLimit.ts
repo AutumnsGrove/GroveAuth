@@ -11,6 +11,8 @@ import {
   RATE_LIMIT_VERIFY_PER_CLIENT,
   RATE_LIMIT_ADMIN_PER_IP,
   RATE_LIMIT_WINDOW,
+  RATE_LIMIT_MAGIC_LINK,
+  RATE_LIMIT_MAGIC_LINK_WINDOW,
   RATE_LIMIT_PASSKEY_REGISTER,
   RATE_LIMIT_PASSKEY_DELETE,
   RATE_LIMIT_PASSKEY_AUTH,
@@ -73,17 +75,32 @@ export function createRateLimiter(config: RateLimitConfig): MiddlewareHandler<{ 
 }
 
 /**
- * Rate limiter for token endpoint (by client)
+ * Rate limiter for token endpoint (by client, falls back to IP)
+ *
+ * OAuth clients typically send client_id in the POST body, not query params.
+ * Since reading the body is async and consumes the stream, we check query
+ * params first and fall back to IP-based rate limiting. This ensures the
+ * token endpoint is always rate-limited regardless of how client_id is sent.
  */
 export const tokenRateLimiter = createRateLimiter({
   keyPrefix: 'token',
   limit: RATE_LIMIT_TOKEN_PER_CLIENT,
   windowSeconds: RATE_LIMIT_WINDOW,
   getKey: (c) => {
-    // Extract client_id from form data or query
     const url = new URL(c.req.url);
-    return url.searchParams.get('client_id');
+    return url.searchParams.get('client_id') || getClientIP(c.req.raw);
   },
+});
+
+/**
+ * Rate limiter for magic link sign-in (by IP)
+ * Prevents email flooding via the Better Auth magic link endpoint
+ */
+export const magicLinkRateLimiter = createRateLimiter({
+  keyPrefix: 'magic_link',
+  limit: RATE_LIMIT_MAGIC_LINK,
+  windowSeconds: RATE_LIMIT_MAGIC_LINK_WINDOW,
+  getKey: (c) => getClientIP(c.req.raw),
 });
 
 /**

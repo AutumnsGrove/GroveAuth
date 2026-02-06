@@ -30,6 +30,7 @@ import {
   passkeyRegisterRateLimiter,
   passkeyDeleteRateLimiter,
   passkeyAuthRateLimiter,
+  magicLinkRateLimiter,
 } from '../middleware/rateLimit.js';
 import { SECURITY_PAGE_CSP } from '../utils/constants.js';
 import {
@@ -48,6 +49,11 @@ betterAuthRoutes.use('/passkey/*', async (c, next) => {
   await next();
   c.res.headers.set('Content-Security-Policy', SECURITY_PAGE_CSP);
 });
+
+/**
+ * Rate limiting for magic link sign-in (prevents email flooding)
+ */
+betterAuthRoutes.post('/sign-in/magic-link', magicLinkRateLimiter);
 
 /**
  * Rate limiting for passkey registration
@@ -225,10 +231,10 @@ betterAuthRoutes.all('/*', async (c) => {
       return c.redirect(errorUrl.toString());
     }
 
+    // SECURITY: Never leak internal error details to clients
     return c.json({
       error: 'server_error',
       message: 'An unexpected error occurred',
-      debug: error instanceof Error ? error.message : String(error),
     }, 500);
   }
 });

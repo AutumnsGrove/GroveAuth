@@ -632,6 +632,17 @@ session.get("/check", async (c) => {
 session.post("/validate-service", async (c) => {
   const db = createDbSession(c.env);
 
+  // SECURITY: Verify service-to-service authentication
+  // In production, this endpoint should only be called via Cloudflare Service Bindings
+  // (which bypass the public internet). The SERVICE_SECRET check provides defense-in-depth
+  // for cases where the endpoint is accessible on the public HTTP routes.
+  if (c.env.SERVICE_SECRET) {
+    const authHeader = c.req.header("Authorization");
+    if (!authHeader || authHeader !== `Bearer ${c.env.SERVICE_SECRET}`) {
+      return c.json({ valid: false, error: "Unauthorized" }, 401);
+    }
+  }
+
   // Rate limit by IP (higher limit for internal services)
   const rateLimit = await checkRouteRateLimit(
     db,

@@ -19,7 +19,7 @@ import {
   getUserClientPreference,
   isEmailAdmin,
 } from "../db/queries.js";
-import { hashSecret } from "../utils/crypto.js";
+import { hashSecret, timingSafeEqual } from "../utils/crypto.js";
 import { verifyAccessToken } from "../services/jwt.js";
 import { createDbSession } from "../db/session.js";
 import {
@@ -640,7 +640,7 @@ session.post("/validate-service", async (c) => {
   // whether SERVICE_SECRET is configured.
   const serviceAuthHeader = c.req.header("Authorization");
   if (c.env.SERVICE_SECRET) {
-    if (!serviceAuthHeader || serviceAuthHeader !== `Bearer ${c.env.SERVICE_SECRET}`) {
+    if (!serviceAuthHeader || !timingSafeEqual(serviceAuthHeader, `Bearer ${c.env.SERVICE_SECRET}`)) {
       return c.json({ valid: false, error: "Unauthorized" }, 401);
     }
   }

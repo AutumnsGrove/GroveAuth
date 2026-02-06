@@ -207,6 +207,24 @@ betterAuthRoutes.all('/*', async (c) => {
     console.error('[BetterAuth] Error stack:', error instanceof Error ? error.stack : 'No stack');
     console.error('[BetterAuth] Request path:', c.req.path);
 
+    // For browser-navigated endpoints (magic link verify, OAuth callbacks),
+    // redirect to an error page instead of returning JSON (which triggers download)
+    const isGetNavigation = c.req.method === 'GET';
+    const isMagicLinkVerify = c.req.path.includes('/magic-link/verify');
+    const isOAuthCallback = c.req.path.includes('/callback/');
+
+    if (isGetNavigation && (isMagicLinkVerify || isOAuthCallback)) {
+      const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
+      const callbackURL = new URL(c.req.url).searchParams.get('callbackURL');
+      // Redirect to Heartwood frontend error page, or Plant if callbackURL hints at it
+      const errorBase = callbackURL?.includes('plant.grove.place')
+        ? 'https://plant.grove.place'
+        : 'https://heartwood.grove.place';
+      const errorUrl = new URL('/login', errorBase);
+      errorUrl.searchParams.set('error', errorMessage);
+      return c.redirect(errorUrl.toString());
+    }
+
     return c.json({
       error: 'server_error',
       message: 'An unexpected error occurred',

@@ -311,15 +311,33 @@ export function createAuth(env: Env, cf?: CloudflareGeolocation) {
               return { data: user };
             }
 
-            // Existing allowlist enforcement
+            // Check primary allowlist in groveauth DB
             const allowed = await isEmailAllowed(groveDb, user.email);
-            if (!allowed) {
-              console.log('[Auth] Signup blocked - email not in allowlist');
-              throw new Error('Email not authorized. Contact an administrator for access.');
+            if (allowed) {
+              console.log('[Auth] User in allowlist - creating');
+              return { data: user };
             }
-            console.log('[Auth] User created successfully');
-            // Return in the format expected by Better Auth hooks
-            return { data: user };
+
+            // Fallback: check comped/beta invites in GroveEngine DB
+            // Comped invites grant authentication access (unused invites only)
+            if (env.ENGINE_DB) {
+              try {
+                const comped = await env.ENGINE_DB
+                  .prepare('SELECT email FROM comped_invites WHERE email = ? AND used_at IS NULL')
+                  .bind(user.email.toLowerCase())
+                  .first();
+                if (comped) {
+                  console.log('[Auth] User has comped/beta invite - creating');
+                  return { data: user };
+                }
+              } catch (err) {
+                console.error('[Auth] Failed to check comped_invites:', err);
+                // Don't block auth if ENGINE_DB query fails - fall through to reject
+              }
+            }
+
+            console.log('[Auth] Signup blocked - email not in allowlist or comped invites');
+            throw new Error('Email not authorized. Contact an administrator for access.');
           },
         },
       },
